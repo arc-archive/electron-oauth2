@@ -177,15 +177,17 @@ describe('Code requests - main process', function() {
           }
         }
       })
-      .then((info) => {
-        assert.typeOf(info, 'object');
-        assert.equal(info.access_token, 'test-code-token');
-        assert.equal(info.accessToken, info.access_token);
-        assert.equal(info.tokenType, expectedRefreshToken);
-        assert.equal(info.tokenType, info.token_type);
-        assert.equal(info.expiresIn, 2700);
-        assert.equal(info.expiresIn, info.expires_in);
-        assert.typeOf(info.expiresAt, 'number');
+      .then((tokenInfo) => {
+        assert.typeOf(tokenInfo, 'object');
+        assert.equal(tokenInfo.access_token, 'test-code-token');
+        assert.equal(tokenInfo.access_token, expectedToken);
+        assert.equal(tokenInfo.accessToken, expectedToken);
+        assert.equal(tokenInfo.tokenType, expectedTokenType);
+        assert.equal(tokenInfo.token_type, expectedTokenType);
+        assert.equal(tokenInfo.expiresIn, 2700);
+        assert.equal(tokenInfo.expires_in, 2700);
+        assert.typeOf(tokenInfo.expiresAt, 'number');
+        assert.equal(tokenInfo.refreshToken, expectedRefreshToken);
       });
     });
 
