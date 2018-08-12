@@ -1,0 +1,23 @@
+{
+  "name": "@advanced-rest-client/electron-oauth2",
+  "version": "0.1.0",
+  "description": "OAuth 2 library for Electron application build for Advanced REST Client",
+  "main": "index.js",
+  "scripts": {
+    "test": "electron-mocha test/*.main.test.js",
+    "test-password": "electron-mocha test/password.main.test.js"
+  },
+  "author": "Pawel Psztyc",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "electron-log": "^2.2.16",
+    "electron-store": "^2.0.0",
+    "fs-extra": "^7.0.0"
+  },
+  "devDependencies": {
+    "chai": "^4.1.2",
+    "electron": "^2.0.7",
+    "electron-mocha": "^6.0.4",
+    "mocha": "^4.1.0"
+  }
+}
