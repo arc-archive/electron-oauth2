@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "electron-mocha test/*.main.test.js",
+    "test-implicit": "electron-mocha test/implicit.main.test.js",
     "test-password": "electron-mocha test/password.main.test.js"
   },
   "author": "Pawel Psztyc",

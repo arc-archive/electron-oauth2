@@ -91,10 +91,10 @@ class TestBaseServer {
       res.end();
       return;
     }
-
+    const delim = this.responseType === 'token' ? '#' : '?';
     const type = oauthParams.get('response_type');
     let redirectUri = oauthParams.get('redirect_uri');
-    redirectUri += '?state=' + oauthParams.get('state');
+    redirectUri += delim + 'state=' + oauthParams.get('state');
     if (type !== this.responseType) {
       this.redirectError(redirectUri, res, 'invalid_grant', 'Grand type not supported');
       return;
