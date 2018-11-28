@@ -435,7 +435,7 @@ The error code can be any of standard OAuth 2 error codes returned by the server
 
 -   `no_state` - state parameter is missing
 -   `invalid_state` - the state returned by the server is not the same as requested
--   `uri_error` - token request couldn't be initialized probably due malformatted URL
+-   `uri_error` - token request couldn't be initialized probably due malformed URL
 -   `user_interrupted` - the user closed pop-up window before finishing the flow
 -   `auth_error` - only when `interactive` flag is set to `false`. The response wasn't recorded from the server.
 
