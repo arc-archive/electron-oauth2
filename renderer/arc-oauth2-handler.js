@@ -59,7 +59,7 @@ class OAuth2Handler {
       clientId: e.detail.clientId,
       clientSecret: e.detail.clientSecret,
       authorizationUri: e.detail.authorizationUri,
-      accessTokenUri: e.detail.accessTokenUrl,
+      accessTokenUri: e.detail.accessTokenUri,
       redirectUri: e.detail.redirectUri,
       username: e.detail.username,
       password: e.detail.password,
