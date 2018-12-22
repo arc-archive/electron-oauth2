@@ -8,7 +8,10 @@
     "test-implicit": "electron-mocha test/implicit.main.test.js",
     "test-password": "electron-mocha test/password.main.test.js"
   },
-  "author": "Pawel Psztyc",
+  "author": {
+    "name": "Pawel Psztyc",
+    "email": "arc@mulesoft.com"
+  },
   "license": "Apache-2.0",
   "repository": {
     "url": "https://github.com/advanced-rest-client/electron-oauth2"
