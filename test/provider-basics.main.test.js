@@ -238,4 +238,88 @@ describe('IdentityProvider class - main process', function() {
       });
     });
   });
+
+  describe('storeToken()', () => {
+    let instance;
+    let content;
+    beforeEach(() => {
+      instance = new IdentityProvider(ID, baseSettings);
+      content = {
+        accessToken: 'test-token'
+      };
+    });
+
+    it('Stores data in the store', () => {
+      instance.storeToken(content);
+      const data = instance.tokentStore.get(instance.cacheKey);
+      assert.deepEqual(data, content);
+    });
+
+    it('Returns a promise', () => {
+      const result = instance.storeToken(content);
+      assert.typeOf(result, 'promise');
+    });
+  });
+
+  describe('restoreTokenInfo()', () => {
+    let instance;
+    let content;
+    beforeEach(() => {
+      instance = new IdentityProvider(ID, baseSettings);
+      instance.tokentStore.clear();
+      content = {
+        accessToken: 'test-token'
+      };
+    });
+
+    function storeData() {
+      instance.storeToken(content);
+    }
+
+    it('Returns a promise', () => {
+      const result = instance.restoreTokenInfo();
+      assert.typeOf(result, 'promise');
+    });
+
+    it('Results to undefined when no data', () => {
+      return instance.restoreTokenInfo()
+      .then((result) => {
+        assert.isUndefined(result);
+      });
+    });
+
+    it('Results to stored data', () => {
+      storeData();
+      return instance.restoreTokenInfo()
+      .then((result) => {
+        assert.deepEqual(result, content);
+      });
+    });
+  });
+
+  describe('clearCache()', () => {
+    let instance;
+    let content;
+    beforeEach(() => {
+      instance = new IdentityProvider(ID, baseSettings);
+      content = {
+        accessToken: 'test-token'
+      };
+      instance.storeToken(content);
+    });
+
+    it('Removes stored data', () => {
+      instance.clearCache();
+      return instance.restoreTokenInfo()
+      .then((result) => {
+        assert.isUndefined(result);
+      });
+    });
+
+    it('Clears tokenInfo', () => {
+      instance.tokenInfo = 'test';
+      instance.clearCache();
+      assert.isUndefined(instance.tokenInfo);
+    });
+  });
 });
