@@ -102,7 +102,7 @@ class OAuth2Handler {
         authorizationUri: e.detail.authorizationUri
       };
     }
-    ipcRenderer.send('oauth-2-launch-web-flow', opts, id);
+    ipcRenderer.send('oauth-2-remove-token', opts, id);
     if (!opts) {
       opts = {};
     }
