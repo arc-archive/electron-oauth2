@@ -1,6 +1,6 @@
 {
   "name": "@advanced-rest-client/electron-oauth2",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "OAuth 2 library for Electron application build for Advanced REST Client",
   "main": "index.js",
   "scripts": {
