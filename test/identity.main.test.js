@@ -1,5 +1,6 @@
 const assert = require('chai').assert;
 const {Oauth2Identity} = require('../');
+const { app } = require('electron');
 
 describe('Oauth2Identity - main process', function() {
   this.timeout(10000);
@@ -49,8 +50,8 @@ describe('Oauth2Identity - main process', function() {
     });
   });
 
-  describe('getOAuthConfig()', () => {
-    it('Returns undefined when section is not defined', () => {
+  describe.skip('getOAuthConfig()', () => {
+    it('Returns undefined when oauth config section is not defined', () => {
       return Oauth2Identity.getOAuthConfig()
       .then((result) => {
         assert.isUndefined(result);

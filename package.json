@@ -1,6 +1,6 @@
 {
   "name": "@advanced-rest-client/electron-oauth2",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "OAuth 2 library for Electron application build for Advanced REST Client",
   "main": "index.js",
   "scripts": {
@@ -17,14 +17,17 @@
     "url": "https://github.com/advanced-rest-client/electron-oauth2"
   },
   "dependencies": {
-    "electron-log": "^3.0.6",
-    "electron-store": "^3.2.0",
-    "fs-extra": "^8.0.1"
+    "electron-log": "^3.0.8",
+    "electron-store": "^5.0.0",
+    "esm": "^3.2.25",
+    "fs-extra": "^8.1.0"
   },
   "devDependencies": {
     "chai": "^4.2.0",
-    "electron": "^5.0.2",
-    "electron-mocha": "^8.0.2",
-    "mocha": "^6.1.4"
+    "electron": "^6.0.10",
+    "electron-mocha": "^8.1.2",
+    "mocha": "^6.2.0",
+    "eslint": "^6.4.0",
+    "eslint-config-google": "^0.14.0"
   }
 }

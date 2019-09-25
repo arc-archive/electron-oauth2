@@ -1,4 +1,4 @@
-const {ipcRenderer} = require('electron');
+const { ipcRenderer } = require('electron');
 /**
  * Class responsible for handing OAuth2 related events and to pass them to
  * the main script for futher processing.
@@ -20,9 +20,14 @@ class OAuth2Handler {
    * Attaches listeners on the body element to listen for elements events.
    */
   listen() {
-    document.body.addEventListener('oauth2-token-requested',
-      this._tokenRequestedHandler);
-    document.body.addEventListener('oauth2-token-remove', this._tokenRemoveHandler);
+    document.body.addEventListener(
+        'oauth2-token-requested',
+        this._tokenRequestedHandler
+    );
+    document.body.addEventListener(
+        'oauth2-token-remove',
+        this._tokenRemoveHandler
+    );
     ipcRenderer.on('oauth-2-token-ready', this._tokenReadyHandler);
     ipcRenderer.on('oauth-2-token-error', this._tokenErrorHandler);
     ipcRenderer.on('oauth-2-token-removed', this._tokenRemovedHandler);
@@ -31,12 +36,20 @@ class OAuth2Handler {
    * Removes any event listeners registered by this class.
    */
   unlisten() {
-    document.body.removeEventListener('oauth2-token-requested',
-      this._tokenRequestedHandler);
-    document.body.removeEventListener('oauth2-token-remove', this._tokenRemoveHandler);
+    document.body.removeEventListener(
+        'oauth2-token-requested',
+        this._tokenRequestedHandler
+    );
+    document.body.removeEventListener(
+        'oauth2-token-remove',
+        this._tokenRemoveHandler
+    );
     ipcRenderer.removeListener('oauth-2-token-ready', this._tokenReadyHandler);
     ipcRenderer.removeListener('oauth-2-token-error', this._tokenErrorHandler);
-    ipcRenderer.removeListener('oauth-2-token-removed', this._tokenRemovedHandler);
+    ipcRenderer.removeListener(
+        'oauth-2-token-removed',
+        this._tokenRemovedHandler
+    );
   }
   /**
    * Handler for the `oauth2-token-requested` custom event.
@@ -71,18 +84,19 @@ class OAuth2Handler {
       password: e.detail.password,
       scopes: e.detail.scopes,
       state: state,
-      customData: e.detail.customData
+      customData: e.detail.customData,
     };
-    const id = (++this._requestId);
+    const id = ++this._requestId;
     this._activeIds[id] = opts;
     ipcRenderer.send('oauth-2-launch-web-flow', opts, id);
   }
   /**
-   * Handler for the `oauth2-token-remove` custom event dispatched to clear cached
-   * token info.
+   * Handler for the `oauth2-token-remove` custom event dispatched to
+   * clear cached token info.
    *
    * The event's `detail` object is optional. When it is set and contains both
-   * `clientId` and `authorizationUri` this data will be used to create identity provider.
+   * `clientId` and `authorizationUri` this data will be used to create
+   * identity provider.
    * Otherwise it will use `package.json` file to get oauth configuration.
    * @param {CustomEvent} e
    */
@@ -92,14 +106,14 @@ class OAuth2Handler {
     }
     e.preventDefault();
     e.stopPropagation();
-    const id = (++this._requestId);
+    const id = ++this._requestId;
     let opts;
     if (e.detail && e.detail.clientId && e.detail.authorizationUri) {
       // This is required to construct the provider ID.
       // When not set it reads package.json file for oauth config.
       opts = {
         clientId: e.detail.clientId,
-        authorizationUri: e.detail.authorizationUri
+        authorizationUri: e.detail.authorizationUri,
       };
     }
     ipcRenderer.send('oauth-2-remove-token', opts, id);
@@ -130,7 +144,7 @@ class OAuth2Handler {
   fire(type, detail) {
     const ev = new CustomEvent(type, {
       bubbles: true,
-      detail: detail
+      detail: detail,
     });
     document.body.dispatchEvent(ev);
   }
@@ -163,7 +177,7 @@ class OAuth2Handler {
     const detail = {
       interactive: settings.interactive,
       message: cause.message || cause || 'Unknown error',
-      code: cause.code || 'unknown_error'
+      code: cause.code || 'unknown_error',
     };
     if (cause.state) {
       detail.state = cause.state;
