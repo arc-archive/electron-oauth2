@@ -17,17 +17,17 @@
     "url": "https://github.com/advanced-rest-client/electron-oauth2"
   },
   "dependencies": {
-    "electron-log": "^4.0.0",
+    "electron-log": "^4.0.3",
     "electron-store": "^5.1.0",
     "esm": "^3.2.25",
     "fs-extra": "^8.1.0"
   },
   "devDependencies": {
     "chai": "^4.2.0",
-    "electron": "^7.1.7",
-    "electron-mocha": "^8.1.2",
+    "electron": "^7.1.8",
+    "electron-mocha": "^8.2.0",
     "eslint": "^6.8.0",
     "eslint-config-google": "^0.14.0",
-    "mocha": "^6.2.2"
+    "mocha": "^7.0.0"
   }
 }
