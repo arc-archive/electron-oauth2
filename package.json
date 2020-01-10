@@ -17,7 +17,6 @@
     "url": "https://github.com/advanced-rest-client/electron-oauth2"
   },
   "dependencies": {
-    "electron-log": "^4.0.3",
     "electron-store": "^5.1.0",
     "esm": "^3.2.25",
     "fs-extra": "^8.1.0"
