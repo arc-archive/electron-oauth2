@@ -6,3 +6,4 @@ commitlint.*
 .*
 *.config.*
 prettier.config.js
+dev.js

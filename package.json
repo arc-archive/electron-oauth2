@@ -17,31 +17,30 @@
     "url": "https://github.com/advanced-rest-client/electron-oauth2"
   },
   "dependencies": {
-    "electron-store": "^5.1.0",
+    "electron-store": "^5.1.1",
     "esm": "^3.2.25",
-    "fs-extra": "^8.1.0"
+    "fs-extra": "^9.0.0"
   },
   "peerDependencies": {
-    "electron": "^7.1.8"
+    "electron": "^8.2.0"
   },
   "devDependencies": {
+    "@advanced-rest-client/eslint-config": "^1.1.5",
+    "@advanced-rest-client/prettier-config": "^0.1.0",
+    "@commitlint/cli": "^8.3.5",
+    "@commitlint/config-conventional": "^8.3.4",
     "chai": "^4.2.0",
-    "electron": "^7.1.8",
-    "electron-mocha": "^8.2.0",
+    "electron": "^8.2.0",
+    "electron-mocha": "^8.2.1",
     "eslint": "^6.8.0",
     "eslint-config-google": "^0.14.0",
-    "mocha": "^7.0.0",
-    "@advanced-rest-client/eslint-config": "^1.1.4",
-    "@advanced-rest-client/prettier-config": "^0.1.0",
-    "@commitlint/cli": "^8.3.4",
-    "@commitlint/config-conventional": "^8.3.4",
-    "husky": "^4.0.4",
-    "lint-staged": "^9.5.0"
+    "husky": "^4.2.3",
+    "lint-staged": "^10.1.0",
+    "mocha": "^7.1.1"
   },
   "lint-staged": {
     "*.js": [
-      "eslint --fix",
-      "git add"
+      "eslint --fix"
     ]
   }
 }
