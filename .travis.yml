@@ -1,6 +1,5 @@
 language: node_js
 node_js: stable
-dist: xenial
 addons:
   apt:
     packages:
@@ -8,4 +7,5 @@ addons:
 install:
   - export DISPLAY=':99.0'
   - Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
-script: xvfb-maybe npm test
+  - npm ci
+script: xvfb-run npm test
