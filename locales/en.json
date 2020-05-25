@@ -1,0 +1,19 @@
+{
+  "ERR_SERVER_STATE": "Server did not return the state parameter.",
+  "ERR_STATE_MISSMATCH": "The state value returned by the authorization server is invalid.",
+  "ERR_REQUEST_CANCELLED": "The request has been canceled by the user.",
+  "ERR_CLIENT_ERROR": "Unable to run authorization flow. Make sure the OAuth2 config is valid.",
+  "ERR_SERVER_ERROR": "No response from the server.",
+  "ERR_CODE_RESPONSE_EMPTY": "Response for code request is empty",
+  "ERR_REQUEST_FAILED": "The request to the authorization server failed.",
+  "ERR_CODE_404": "Authorization URI is invalid. Received status 404.",
+  "ERR_INTERACTION_REQUIRED": "The request requires user interaction.",
+  "ERR_INVALID_REQUEST": "The request is missing a required parameter.",
+  "ERR_INVALID_CLIENT": "Client authentication failed.",
+  "ERR_INVALID_GRANT": "The provided authorization grant or refresh token is invalid, expired, revoked, does not match the redirection URI used in the authorization request, or was issued to another client.",
+  "ERR_UNAUTHORIZED_CLIENT": "The authenticated client is not authorized to use this authorization grant type.",
+  "ERR_UNSUPPORTED_GRANT_TYPE": "The authorization grant type is not supported by the authorization server.",
+  "ERR_INVALID_SCOPE": "The requested scope is invalid, unknown, malformed, or exceeds the scope granted by the resource owner.",
+  "Client error: %s": "Client error: %s",
+  "Authorization server error. Response code is %s": "Authorization server error. Response code is %s"
+}

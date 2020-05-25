@@ -1,4 +1,4 @@
-const {TestBaseServer} = require('./base-test-server');
+const { TestBaseServer } = require('./base-test-server');
 
 class ImplicitServer extends TestBaseServer {
   constructor() {
@@ -12,10 +12,10 @@ class ImplicitServer extends TestBaseServer {
 const instance = new ImplicitServer();
 
 module.exports = {
-  create: function() {
+  create() {
     return instance.create();
   },
-  shutdown: function() {
+  shutdown() {
     return instance.shutdown();
-  }
+  },
 };

@@ -1,27 +1,20 @@
-const assert = require('chai').assert;
-const {Oauth2Identity} = require('../');
-const { app } = require('electron');
+const { assert } = require('chai');
+const { Oauth2Identity, IdentityProvider } = require('../');
 
-describe('Oauth2Identity - main process', function() {
-  this.timeout(10000);
+describe('Oauth2Identity - main process', () => {
   describe('_generateProviderId()', () => {
     it('Generates provider ID', () => {
       const result = Oauth2Identity._generateProviderId('https://auth.domain.com', 'http://clientId');
       assert.equal(result, 'https%3A%2F%2Fauth.domain.com/http%3A%2F%2FclientId');
     });
   });
-  describe('_addProvider()', () => {
-    it('creates Oauth2Identity.__providers', () => {
-      const provider = {};
-      Oauth2Identity._addProvider(provider);
-      assert.lengthOf(Oauth2Identity.__providers, 1);
-    });
 
-    it('Adds new item to the list', () => {
-      Oauth2Identity.__providers = [{}];
-      const provider = {};
+  describe('_addProvider()', () => {
+    it('adds a provider to the list', () => {
+      const provider = new IdentityProvider('a/b', {});
       Oauth2Identity._addProvider(provider);
-      assert.lengthOf(Oauth2Identity.__providers, 2);
+      const result = Oauth2Identity._getProvider('a', 'b');
+      assert.ok(result);
     });
   });
 
@@ -30,32 +23,30 @@ describe('Oauth2Identity - main process', function() {
     const clientId = 'testClient';
 
     it('Returns undefined when no providers', () => {
-      Oauth2Identity.__providers = undefined;
       const result = Oauth2Identity._getProvider(authUri, clientId);
       assert.isUndefined(result);
     });
 
-    it('Returns undefined provider not found', () => {
-      Oauth2Identity.__providers = [{id: 'test'}];
+    it('returns undefined provider not found', () => {
+      const provider = new IdentityProvider('a/b', {});
+      Oauth2Identity._addProvider(provider);
       const result = Oauth2Identity._getProvider(authUri, clientId);
       assert.isUndefined(result);
     });
 
     it('Returns the provider', () => {
-      Oauth2Identity.__providers = [{
-        id: 'https%3A%2F%2Fauth.domain.com/testClient'
-      }];
+      const id = Oauth2Identity._generateProviderId(authUri, clientId);
+      const provider = new IdentityProvider(id, {});
+      Oauth2Identity._addProvider(provider);
       const result = Oauth2Identity._getProvider(authUri, clientId);
       assert.typeOf(result, 'object');
     });
   });
 
-  describe.skip('getOAuthConfig()', () => {
-    it('Returns undefined when oauth config section is not defined', () => {
-      return Oauth2Identity.getOAuthConfig()
-      .then((result) => {
-        assert.isUndefined(result);
-      });
+  describe('getOAuthConfig()', () => {
+    it('Returns undefined when oauth config section is not defined', async () => {
+      const result = await Oauth2Identity.getOAuthConfig();
+      assert.isUndefined(result);
     });
   });
 });

@@ -1,9 +1,5 @@
 coverage/
 test/
 .travis.yml
-husky.*
-commitlint.*
 .*
-*.config.*
-prettier.config.js
 dev.js

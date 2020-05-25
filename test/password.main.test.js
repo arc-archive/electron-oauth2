@@ -1,10 +1,9 @@
 // jscs:disable requireCamelCaseOrUpperCaseIdentifiers
-const assert = require('chai').assert;
-const {IdentityProvider} = require('../');
+const { assert } = require('chai');
+const { IdentityProvider } = require('../');
 const srv = require('./password-server');
 
-describe('Password requests - main process', function() {
-  this.timeout(10000);
+describe('Password requests - main process', () => {
   const ID = 'test-instance-id-password-request';
   const clientId = 'test-client-id-password-request';
   const scopes = ['password1', 'password1'];
@@ -15,33 +14,28 @@ describe('Password requests - main process', function() {
   const expectedTokenType = 'test-password-type';
   const expectedRefreshToken = 'password-refresh-token';
   let serverPort;
-  before(() => {
-    return srv.create()
-    .then((port) => serverPort = port);
-  });
+  before(() => srv.create()
+    .then((port) => serverPort = port));
 
-  after(() => {
-    return srv.shutdown();
-  });
+  after(() => srv.shutdown());
 
-  describe('launchWebAuthFlow()', function() {
+  describe('launchWebAuthFlow()', () => {
     let instance;
     let params;
-    before(function() {
+    before(() => {
       params = {
         response_type: responseType,
         client_id: clientId,
         token_uri: `http://localhost:${serverPort}/token`,
-        scopes: scopes
+        scopes,
       };
       instance = new IdentityProvider(ID, params);
     });
 
-    it('Returns promise resolved to token', function() {
-      return instance.launchWebAuthFlow({
-        username: username,
-        password: password
-      })
+    it('Returns promise resolved to token', () => instance.launchWebAuthFlow({
+      username,
+      password,
+    })
       .then((tokenInfo) => {
         assert.typeOf(tokenInfo, 'object');
         assert.equal(tokenInfo.access_token, expectedToken);
@@ -52,68 +46,66 @@ describe('Password requests - main process', function() {
         assert.equal(tokenInfo.expires_in, 900);
         assert.typeOf(tokenInfo.expiresAt, 'number');
         assert.equal(tokenInfo.refreshToken, expectedRefreshToken);
-      });
-    });
+      }));
 
-    it('Handles errors', function(done) {
+    it('Handles errors', (done) => {
       instance.launchWebAuthFlow({
-        username: username,
-        password: password,
+        username,
+        password,
         customData: {
           token: {
             body: [{
               name: 'custom_fail_request',
-              value: 'true'
-            }]
-          }
-        }
+              value: 'true',
+            }],
+          },
+        },
       })
-      .then(() => {
-        done(new Error('Request is a success'));
-      })
-      .catch((cause) => {
-        setTimeout(() => {
-          assert.equal(cause.code, 'uri_error');
-          done();
-        }, 1);
-      });
+        .then(() => {
+          done(new Error('Request is a success'));
+        })
+        .catch((cause) => {
+          setTimeout(() => {
+            assert.equal(cause.code, 'uri_error');
+            done();
+          }, 1);
+        });
     });
 
-    it('Store token in cache store', function() {
+    it('Store token in cache store', () => {
       let info;
       return instance.launchWebAuthFlow({
-        username: username,
-        password: password,
+        username,
+        password,
       })
-      .then((tokenInfo) => {
-        info = tokenInfo;
-        return instance.restoreTokenInfo();
-      })
-      .then((restored) => {
-        assert.typeOf(restored, 'object');
-        assert.equal(restored.accessToken, info.accessToken);
-        assert.equal(restored.access_token, info.access_token);
-        assert.equal(restored.tokenType, info.tokenType);
-        assert.equal(restored.token_type, info.token_type);
-        assert.equal(restored.expiresIn, info.expiresIn);
-        assert.equal(restored.expires_in, info.expires_in);
-        assert.equal(restored.expiresAt, info.expiresAt);
-      });
+        .then((tokenInfo) => {
+          info = tokenInfo;
+          return instance.restoreTokenInfo();
+        })
+        .then((restored) => {
+          assert.typeOf(restored, 'object');
+          assert.equal(restored.accessToken, info.accessToken);
+          assert.equal(restored.access_token, info.access_token);
+          assert.equal(restored.tokenType, info.tokenType);
+          assert.equal(restored.token_type, info.token_type);
+          assert.equal(restored.expiresIn, info.expiresIn);
+          assert.equal(restored.expires_in, info.expires_in);
+          assert.equal(restored.expiresAt, info.expiresAt);
+        });
     });
 
-    it('Handles application/x-www-form-urlencoded response data', function() {
-      return instance.launchWebAuthFlow({
-        username: username,
-        password: password,
-        customData: {
-          token: {
-            headers: [{
-              name: 'accept',
-              value: 'application/x-www-form-urlencoded'
-            }]
-          }
-        }
-      })
+    it('Handles application/x-www-form-urlencoded response data', () => instance.launchWebAuthFlow({
+      username,
+      password,
+      customData: {
+        token: {
+          headers: [{
+            name: 'accept',
+            value: 'application/x-www-form-urlencoded',
+          }],
+        },
+      },
+    })
       .then((info) => {
         assert.typeOf(info, 'object');
         assert.equal(info.access_token, expectedToken);
@@ -124,70 +116,63 @@ describe('Password requests - main process', function() {
         assert.equal(info.expires_in, 900);
         assert.typeOf(info.expiresAt, 'number');
         assert.equal(info.refreshToken, expectedRefreshToken);
-      });
-    });
+      }));
 
-    it('Sends custom query parameetrs', function() {
-      return instance.launchWebAuthFlow({
-        username: username,
-        password: password,
-        customData: {
-          token: {
-            parameters: [{
-              name: 'custom_test_url',
-              value: 'true'
-            }],
-            body: [{
-              name: 'custom_test_url',
-              value: 'true'
-            }]
-          }
-        }
-      })
+    it('Sends custom query parameetrs', () => instance.launchWebAuthFlow({
+      username,
+      password,
+      customData: {
+        token: {
+          parameters: [{
+            name: 'custom_test_url',
+            value: 'true',
+          }],
+          body: [{
+            name: 'custom_test_url',
+            value: 'true',
+          }],
+        },
+      },
+    })
       .then((info) => {
         assert.equal(info.custom_test_url, true);
-      });
-    });
+      }));
 
-    it('Sends custom headers', function() {
-      return instance.launchWebAuthFlow({
-        username: username,
-        password: password,
-        customData: {
-          token: {
-            headers: [{
-              name: 'x-custom-test-headers',
-              value: 'true'
-            }],
-            body: [{
-              name: 'custom_test_headers',
-              value: 'true'
-            }]
-          }
-        }
-      })
+    it('Sends custom headers', () => instance.launchWebAuthFlow({
+      username,
+      password,
+      customData: {
+        token: {
+          headers: [{
+            name: 'x-custom-test-headers',
+            value: 'true',
+          }],
+          body: [{
+            name: 'custom_test_headers',
+            value: 'true',
+          }],
+        },
+      },
+    })
       .then((info) => {
         assert.typeOf(info, 'object');
         assert.equal(info.custom_test_headers, true);
-      });
-    });
+      }));
 
-    it('Sends custom body parameetrs', function() {
-      return instance.launchWebAuthFlow({
-        username: username,
-        password: password,
-        customData: {
-          token: {
-            body: [{
-              name: 'custom_test_body',
-              value: 'true'
-            }]
-          }
-        }
-      })
+    it('Sends custom body parameetrs', () => instance.launchWebAuthFlow({
+      username,
+      password,
+      customData: {
+        token: {
+          body: [{
+            name: 'custom_test_body',
+            value: 'true',
+          }],
+        },
+      },
+    })
       .then((info) => {
         assert.equal(info.custom_test_body, true);
-      });
-    });
+      }));
   });
 });

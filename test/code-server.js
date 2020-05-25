@@ -1,4 +1,4 @@
-const {TestBaseServer} = require('./base-test-server');
+const { TestBaseServer } = require('./base-test-server');
 
 class CodeServer extends TestBaseServer {
   constructor() {
@@ -15,10 +15,10 @@ class CodeServer extends TestBaseServer {
 const instance = new CodeServer();
 
 module.exports = {
-  create: function() {
+  create() {
     return instance.create();
   },
-  shutdown: function() {
+  shutdown() {
     return instance.shutdown();
-  }
+  },
 };

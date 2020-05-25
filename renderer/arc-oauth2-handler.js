@@ -1,4 +1,9 @@
 const { ipcRenderer } = require('electron');
+
+/** @typedef {import('./../lib/provider').AuthorizationOptions} AuthorizationOptions */
+/** @typedef {import('./../lib/provider').TokenInfo} TokenInfo */
+/** @typedef {import('./../lib/provider').TokenRemoveOptions} TokenRemoveOptions */
+
 /**
  * Class responsible for handing OAuth2 related events and to pass them to
  * the main script for futher processing.
@@ -13,48 +18,95 @@ class OAuth2Handler {
     this._tokenReadyHandler = this._tokenReadyHandler.bind(this);
     this._tokenRemovedHandler = this._tokenRemovedHandler.bind(this);
     this._tokenRemoveHandler = this._tokenRemoveHandler.bind(this);
+    this._launchFlowHandler = this._launchFlowHandler.bind(this);
+    this._tokenPromiseRemoveHandler = this._tokenPromiseRemoveHandler.bind(this);
     this._requestId = 0;
     this._activeIds = {};
   }
+
   /**
    * Attaches listeners on the body element to listen for elements events.
    */
   listen() {
     document.body.addEventListener(
-        'oauth2-token-requested',
-        this._tokenRequestedHandler
+      'oauth2-token-requested',
+      this._tokenRequestedHandler,
     );
     document.body.addEventListener(
-        'oauth2-token-remove',
-        this._tokenRemoveHandler
+      'oauth2-token-remove',
+      this._tokenRemoveHandler,
+    );
+    document.body.addEventListener(
+      'oauth2-launchwebflow',
+      this._launchFlowHandler,
+    );
+    document.body.addEventListener(
+      'oauth2-removetoken',
+      this._tokenPromiseRemoveHandler,
     );
     ipcRenderer.on('oauth-2-token-ready', this._tokenReadyHandler);
     ipcRenderer.on('oauth-2-token-error', this._tokenErrorHandler);
     ipcRenderer.on('oauth-2-token-removed', this._tokenRemovedHandler);
   }
+
   /**
    * Removes any event listeners registered by this class.
    */
   unlisten() {
     document.body.removeEventListener(
-        'oauth2-token-requested',
-        this._tokenRequestedHandler
+      'oauth2-token-requested',
+      this._tokenRequestedHandler,
     );
     document.body.removeEventListener(
-        'oauth2-token-remove',
-        this._tokenRemoveHandler
+      'oauth2-token-remove',
+      this._tokenRemoveHandler,
+    );
+    document.body.removeEventListener(
+      'oauth2-launchwebflow',
+      this._launchFlowHandler,
+    );
+    document.body.removeEventListener(
+      'oauth2-removetoken',
+      this._tokenPromiseRemoveHandler,
     );
     ipcRenderer.removeListener('oauth-2-token-ready', this._tokenReadyHandler);
     ipcRenderer.removeListener('oauth-2-token-error', this._tokenErrorHandler);
     ipcRenderer.removeListener(
-        'oauth-2-token-removed',
-        this._tokenRemovedHandler
+      'oauth-2-token-removed',
+      this._tokenRemovedHandler,
     );
   }
+
+  /**
+   * Requests for a token from the main process.
+   * @param {AuthorizationOptions} opts Auth options.
+   * @return {Promise<TokenInfo>} The token info object.
+   */
+  async requestToken(opts) {
+    return ipcRenderer.invoke('oauth2-launchwebflow', opts);
+  }
+
+  /**
+   * Handler for the `oauth2-launchwebflow` custom event.
+   * This sets a promise on the `detail.result` object instead of
+   * dispatching event with the token.
+   *
+   * @param {CustomEvent} e
+   */
+  _launchFlowHandler(e) {
+    if (e.defaultPrevented) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    const opts = this._prepareEventDetail(e.detail);
+    e.detail.result = this.requestToken(opts);
+  }
+
   /**
    * Handler for the `oauth2-token-requested` custom event.
    *
-   * @param {Event} e Request custom event.
+   * @param {CustomEvent} e Request custom event.
    */
   _tokenRequestedHandler(e) {
     if (e.defaultPrevented) {
@@ -62,34 +114,47 @@ class OAuth2Handler {
     }
     e.preventDefault();
     e.stopPropagation();
-    let interactive;
-    if (typeof e.detail.interactive === 'boolean') {
-      interactive = e.detail.interactive;
-    }
-    let state;
-    if (!e.detail.state) {
-      state = this.generateState();
-    } else {
-      state = e.detail.state;
-    }
-    const opts = {
-      interactive,
-      type: e.detail.type,
-      clientId: e.detail.clientId,
-      clientSecret: e.detail.clientSecret,
-      authorizationUri: e.detail.authorizationUri,
-      accessTokenUri: e.detail.accessTokenUri,
-      redirectUri: e.detail.redirectUri,
-      username: e.detail.username,
-      password: e.detail.password,
-      scopes: e.detail.scopes,
-      state: state,
-      customData: e.detail.customData,
-    };
+    const opts = this._prepareEventDetail(e.detail);
     const id = ++this._requestId;
     this._activeIds[id] = opts;
     ipcRenderer.send('oauth-2-launch-web-flow', opts, id);
   }
+
+  /**
+   * Prepares OAuth 2 config from the event detail.
+   * @param {object} detail Event's detail object
+   * @return {AuthorizationOptions}
+   */
+  _prepareEventDetail(detail) {
+    let interactive;
+    if (typeof detail.interactive === 'boolean') {
+      interactive = detail.interactive;
+    }
+    let state;
+    if (!detail.state) {
+      state = this.generateState();
+    } else {
+      state = detail.state;
+    }
+    const opts = {
+      interactive,
+      type: detail.type,
+      clientId: detail.clientId,
+      clientSecret: detail.clientSecret,
+      authorizationUri: detail.authorizationUri,
+      accessTokenUri: detail.accessTokenUri,
+      redirectUri: detail.redirectUri,
+      username: detail.username,
+      password: detail.password,
+      scopes: detail.scopes,
+      state,
+      customData: detail.customData,
+      includeGrantedScopes: detail.includeGrantedScopes,
+      loginHint: detail.loginHint,
+    };
+    return opts;
+  }
+
   /**
    * Handler for the `oauth2-token-remove` custom event dispatched to
    * clear cached token info.
@@ -122,6 +187,44 @@ class OAuth2Handler {
     }
     this._activeIds[id] = opts;
   }
+
+  /**
+   * Handler for the `oauth2-removetoken` custom event dispatched to
+   * clear cached token info.
+   *
+   * It adds `result` on the detail object with the promise with the result of
+   * removing the token.,
+   * Configuration options are optional. When set and contains both
+   * `clientId` and `authorizationUri` this data will be used to create
+   * identity provider. Otherwise it uses `package.json` file to get oauth configuration.
+   * @param {CustomEvent} e
+   */
+  _tokenPromiseRemoveHandler(e) {
+    if (e.defaultPrevented) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    let opts;
+    if (e.detail && e.detail.clientId && e.detail.authorizationUri) {
+      opts = {
+        clientId: e.detail.clientId,
+        authorizationUri: e.detail.authorizationUri,
+      };
+    }
+    e.detail.result = this.deleteToken(opts);
+  }
+
+  /**
+   * Removes token from the chache.
+   *
+   * @param {TokenRemoveOptions=} opts
+   * @return {Promise<void>}
+   */
+  async deleteToken(opts) {
+    return ipcRenderer.invoke('oauth2-removetoken', opts);
+  }
+
   /**
    * Generates `state` parameter for the OAuth2 call.
    *
@@ -135,19 +238,21 @@ class OAuth2Handler {
     }
     return text;
   }
+
   /**
    * Fires custom event.
    *
-   * @param {Strnig} type Event name
-   * @param {Object} detail Value of the detail object.
+   * @param {String} type Event name
+   * @param {Object=} detail Value of the detail object.
    */
   fire(type, detail) {
     const ev = new CustomEvent(type, {
       bubbles: true,
-      detail: detail,
+      detail,
     });
     document.body.dispatchEvent(ev);
   }
+
   /**
    * Checks if given ID is on the active IDs lis, removes the ID from the list
    * and returns initial options for the request.
@@ -162,10 +267,11 @@ class OAuth2Handler {
     }
     return data;
   }
+
   /**
    * Handler for the token error response.
    *
-   * @param {Event} e
+   * @param {Electron.IpcRendererEvent} e
    * @param {Object} cause Error info.
    * @param {Number} id Generated and sent to main process ID
    */
@@ -184,11 +290,12 @@ class OAuth2Handler {
     }
     this.fire('oauth2-error', detail);
   }
+
   /**
    * Handler for succesful OAuth token request.
    *
-   * @param {Event} e
-   * @param {Object} tokenInfo Token info object
+   * @param {Electron.IpcRendererEvent} e
+   * @param {TokenInfo} tokenInfo Token info object
    * @param {Number} id Generated and sent to main process ID
    */
   _tokenReadyHandler(e, tokenInfo, id) {
@@ -202,11 +309,12 @@ class OAuth2Handler {
     tokenInfo.interactive = settings.interactive;
     this.fire('oauth2-token-response', tokenInfo);
   }
+
   /**
    * Handler for oauth-2-token-removed main event.
    *
-   * @param {Event} e
-   * @param {Number} id Generated and sent to main process ID
+   * @param {Electron.IpcRendererEvent} e
+   * @param {number} id Generated and sent to main process ID
    */
   _tokenRemovedHandler(e, id) {
     const settings = this._checkAndRemoveRequestId(id);
