@@ -11,11 +11,11 @@ export declare class AuthError extends Error {
    */
   code: string;
   /**
-   * The toekn request state parameter.
+   * The token request state parameter.
    */
   state: string;
   /**
-   * Whether the token request was interactibe.
+   * Whether the token request was interactive.
    */
   interactive?: boolean;
   /**

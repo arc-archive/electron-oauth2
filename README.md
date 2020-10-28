@@ -7,44 +7,64 @@ A library to manage OAuth2 identities. It runs in the main process of the electr
 
 ## Usage
 
-```
-$ npm i @advanced-rest-client/electron-oauth2
+```sh
+npm i @advanced-rest-client/electron-oauth2
 ```
 
 In your main class:
 
 ```javascript
-const {Oauth2Identity} = require('@advanced-rest-client/electron-oauth2');
-ArcIdentity.listen();
+import { Oauth2Identity } from '@advanced-rest-client/electron-oauth2';
+Oauth2Identity.listen();
 ```
 
 Requesting token from the renderer process:
 
 ```javascript
-const {ipcRenderer} = require('electron');
+const { ipcRenderer } = require('electron');
 
-const requestId = 'Optional id to recognize the request in event based env';
-ipcRenderer.send('oauth-2-launch-web-flow', {
+const config = {
   interactive: true,
   type: 'implicit',
   scopes: ['email', 'profile'],
   clientId: 'client-id',
   authorizationUri: 'https://auth.domain.com/auth',
   redirectUri: 'https://my.domain.com/oauth2callback',
-  state: 'RANDOM'
-}, requestId);
-ipcRenderer.on('oauth-2-token-ready', (e, tokenInfo, id) => {
-  if (id !== requestId) {
-    return;
-  }
+  state: 'RANDOM',
+};
+
+try {
+  const tokenInfo = await ipcRenderer.invoke('oauth2-launchwebflow', config);
   console.log(tokenInfo);
-});
-ipcRenderer.on('oauth-2-token-error', (e, cause, id) => {
-  if (id !== requestId) {
-    return;
-  }
+} catch (cause) {
   console.error(cause);
+}
+```
+
+### ARC events
+
+This module contains a class for the renderer process that handles events defined in `@advanced-rest-client/arc-events`. Use them in the web application (in the renderer process) to request for the token.
+
+#### In the preload script
+
+```javascript
+import { Oauth2Identity } from '@advanced-rest-client/electron-oauth2/renderer/OAuth2Handler.js';
+process.once('loaded', () => {
+  const oauthBridge = new Oauth2Identity();
+  oauthBridge.listen();
 });
+```
+
+#### Anywhere in the renderer process
+
+```javascript
+import { AuthorizationEvents } from '@advanced-rest-client/arc-events';
+
+try {
+  const tokenInfo = await AuthorizationEvents.OAuth2.authorize(document.body, { ...config });
+} catch (e) {
+  // ...
+}
 ```
 
 ### TokenInfo object
@@ -92,8 +112,7 @@ Array of strings. This parameter is optional if the list of granted scopes is id
 
 OAuth flow with `interactive` option set to `false` allows to quietly request for the token from the cache or form the authorization server without notifying the user (without bringing the authorization pop-up).
 
-This is to be used to check if valid session exists for current user and update the UI
-accordingly.
+This is to be used to check if valid session exists for current user and update the UI accordingly.
 
 Note, when `interactive` is `false` the `oauth-2-token-ready` is dispatched even if session do not exists. In this case `tokenInfo` has different structure:
 
@@ -145,20 +164,6 @@ if it's mixed. The reason is described in [Application wide OAuth configuration]
   "loginHint": "String, optional"
 }
 ```
-or
-```json
-{
-  "response_type": "implicit",
-  "client_id": "String, required",
-  "auth_uri": "String, required",
-  "redirect_uri": "String, optional",
-  "scopes": "Array<String>, optional",
-  "state": "String, optional",
-  "interactive": "Boolean, optional",
-  "include_granted_scopes": "Boolean, optional",
-  "login_hint": "String, optional"
-}
-```
 
 ### Code
 
@@ -199,22 +204,6 @@ or
   "login_hint": "String, optional"
 }
 ```
-or
-```json
-{
-  "response_type": "authorization_code",
-  "client_id": "String, required",
-  "client_secret": "String, optional",
-  "auth_uri": "String, required",
-  "token_uri": "String, required",
-  "redirect_uri": "String, optional",
-  "scopes": "Array<String>, optional",
-  "state": "String, optional",
-  "interactive": "Boolean, optional",
-  "include_granted_scopes": "Boolean, optional",
-  "login_hint": "String, optional"
-}
-```
 
 ### Password
 
@@ -243,18 +232,6 @@ or
   "interactive": "Boolean, optional"
 }
 ```
-or
-```json
-{
-  "response_type": "password",
-  "username": "String, required",
-  "password": "String, required",
-  "token_uri": "String, required",
-  "scopes": "Array<String>, optional",
-  "client_id": "String, optional",
-  "interactive": "Boolean, optional"
-}
-```
 
 ### Client credentials
 
@@ -277,17 +254,6 @@ or
   "scopes": "Array<String>, optional",
   "clientId": "String, optional",
   "clientSecret": "String, optional",
-  "interactive": "Boolean, optional"
-}
-```
-or
-```json
-{
-  "response_type": "client_credentials",
-  "token_uri": "String, required",
-  "scopes": "Array<String>, optional",
-  "client_id": "String, optional",
-  "client_secret": "String, optional",
   "interactive": "Boolean, optional"
 }
 ```
@@ -326,7 +292,7 @@ The `auth` is applied to the authorization request (`implicit` and `authorizatio
 
 The `token` is applied to token request (`authorization_code`, `password`, and  `client_credentials` grants). Each property is applied to the corresponding fields.
 
-**Example**
+### Example
 
 ```javascript
 const settings = {
@@ -360,7 +326,7 @@ The main use case of this library to authorize the user in many services at appl
 For this the library support additional method of authorizing the user `getAuthToken()`.
 The method reads `package.json` of the application and uses `oauth2` section to use it as settings when creating an instance of auth provider. This settings are always used unless the `settings` object override the values.
 
-**Example configuration**
+### Example configuration
 
 In `package.json` file:
 
@@ -433,11 +399,11 @@ The error object contains the following properties:
 
 The error code can be any of standard OAuth 2 error codes returned by the server or
 
--   `no_state` - state parameter is missing
--   `invalid_state` - the state returned by the server is not the same as requested
--   `uri_error` - token request couldn't be initialized probably due malformed URL
--   `user_interrupted` - the user closed pop-up window before finishing the flow
--   `auth_error` - only when `interactive` flag is set to `false`. The response wasn't recorded from the server.
+- `no_state` - state parameter is missing
+- `invalid_state` - the state returned by the server is not the same as requested
+- `uri_error` - token request couldn't be initialized probably due malformed URL
+- `user_interrupted` - the user closed pop-up window before finishing the flow
+- `auth_error` - only when `interactive` flag is set to `false`. The response wasn't recorded from the server.
 
 ## Security considerations
 

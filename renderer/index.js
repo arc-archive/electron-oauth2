@@ -1,1 +1,1 @@
-exports.OAuth2Handler = require('./arc-oauth2-handler').OAuth2Handler;
+export { OAuth2Handler } from './OAuth2Handler.js';

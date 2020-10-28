@@ -13,13 +13,13 @@ describe('Request body generators - main process', () => {
     scopes: ['one', 'two'],
   };
 
-  describe('_getCodeEchangeBody()', () => {
-    let instance;
+  describe('_getCodeExchangeBody()', () => {
+    let instance = /** @type IdentityProvider */ (null);
     before(() => {
-      instance = new IdentityProvider(ID, Object.assign({}, params));
+      instance = new IdentityProvider(ID, { ...params });
     });
     it('Applies params to the body', () => {
-      const result = instance._getCodeEchangeBody(params, 'test code');
+      const result = instance._getCodeExchangeBody(params, 'test code');
       let compare = 'grant_type=authorization_code&client_id=test%20client%20id';
       compare += '&code=test%20code&client_secret=test%20client%20secret';
       assert.equal(result, compare);
@@ -27,24 +27,30 @@ describe('Request body generators - main process', () => {
   });
 
   describe('_getClientCredentialsBody()', () => {
-    let instance;
+    let instance = /** @type IdentityProvider */ (null);
     beforeEach(() => {
-      instance = new IdentityProvider(ID, Object.assign({}, params));
+      instance = new IdentityProvider(ID, { ...params });
     });
+
     it('grant_type is set', () => {
       const result = instance._getClientCredentialsBody({});
       assert.equal(result.indexOf('grant_type=client_credentials'), 0);
     });
-    it('Skips client_id is not set', () => {
+
+    it('skips client_id is not set', () => {
+      instance = new IdentityProvider(ID);
       const result = instance._getClientCredentialsBody({});
       assert.equal(result.indexOf('client_id='), -1);
     });
-    it('Skips client_secret is not set', () => {
+
+    it('skips client_secret is not set', () => {
+      instance = new IdentityProvider(ID);
       const result = instance._getClientCredentialsBody({});
       assert.equal(result.indexOf('client_secret='), -1);
     });
-    it('Skips scope is not set', () => {
-      instance.oauthConfig.scopes = undefined;
+
+    it('skips scope is not set', () => {
+      instance = new IdentityProvider(ID);
       const result = instance._getClientCredentialsBody({});
       assert.equal(result.indexOf('scope='), -1);
     });
@@ -63,31 +69,36 @@ describe('Request body generators - main process', () => {
   });
 
   describe('_getPasswordBody()', () => {
-    let instance;
+    let instance = /** @type IdentityProvider */ (null);
     beforeEach(() => {
-      instance = new IdentityProvider(ID, Object.assign({}, params));
+      instance = new IdentityProvider(ID, { ...params });
     });
+
     it('grant_type is set', () => {
       const result = instance._getPasswordBody(params);
       assert.equal(result.indexOf('grant_type=password'), 0);
     });
+
     it('username is set', () => {
       const result = instance._getPasswordBody(params);
       assert.notEqual(result.indexOf('&username=test%20username'), -1);
     });
+
     it('password is set', () => {
       const result = instance._getPasswordBody(params);
       assert.notEqual(result.indexOf('&password=test%20password'), -1);
     });
+
     it('Skips client_id is not set', () => {
-      const copy = Object.assign({}, params);
+      instance = new IdentityProvider(ID);
+      const copy = { ...params };
       delete copy.clientId;
       const result = instance._getPasswordBody(copy);
       assert.equal(result.indexOf('client_id='), -1);
     });
     it('Skips scope is not set', () => {
       instance.oauthConfig.scopes = undefined;
-      const copy = Object.assign({}, params);
+      const copy = { ...params };
       delete copy.scopes;
       const result = instance._getPasswordBody(copy);
       assert.equal(result.indexOf('scope='), -1);

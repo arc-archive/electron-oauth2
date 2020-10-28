@@ -12,88 +12,94 @@ describe('IdentityProvider class - main process', () => {
     loginHint: 'email@domain.com',
     interactive: false,
   };
+
   describe('_constructPopupUrl()', () => {
-    let instance;
+    let instance = /** @type IdentityProvider */ (null);
     beforeEach(() => {
       instance = new IdentityProvider(ID, baseSettings);
     });
     const defaultType = 'token';
 
-    it('Sets authorization url', () => {
+    it('sets authorization url', () => {
       const result = instance._constructPopupUrl(baseSettings, defaultType);
       assert.equal(result.indexOf('http://test.com/auth?'), 0);
     });
 
-    it('Sets response_type property', () => {
+    it('sets response_type property', () => {
       const result = instance._constructPopupUrl(baseSettings, defaultType);
       assert.notEqual(result.indexOf('response_type=token&'), -1);
     });
 
-    it('Sets client_id property', () => {
+    it('sets client_id property', () => {
       const result = instance._constructPopupUrl(baseSettings, defaultType);
       assert.notEqual(result.indexOf('client_id=test%20client%20id&'), -1);
     });
 
-    it('Sets redirect_uri property', () => {
+    it('sets redirect_uri property', () => {
       const result = instance._constructPopupUrl(baseSettings, defaultType);
       assert.notEqual(result.indexOf('redirect_uri=http%3A%2F%2Ftest.com%2Fredirect'), -1);
     });
 
-    it('Sets scopes property', () => {
+    it('sets scopes property', () => {
       const result = instance._constructPopupUrl(baseSettings, defaultType);
       assert.notEqual(result.indexOf('scope=one%20two'), -1);
     });
 
-    it('Sets state property', () => {
+    it('sets state property', () => {
       instance._state = 'test state';
       const result = instance._constructPopupUrl(baseSettings, defaultType);
       assert.notEqual(result.indexOf('state=test%20state'), -1);
     });
 
-    it('Sets Google Oauth properties.', () => {
+    it('sets Google Oauth properties.', () => {
       const result = instance._constructPopupUrl(baseSettings, defaultType);
       assert.notEqual(result.indexOf('include_granted_scopes=true'), -1);
       assert.notEqual(result.indexOf('prompt=none'), -1);
       assert.notEqual(result.indexOf('login_hint=email%40domain.com'), -1);
     });
 
-    it('Skips redirect_uri if not set', () => {
-      const settings = Object.assign({}, baseSettings);
-      settings.redirectUri = undefined;
+    it('skips redirect_uri if not set', () => {
+      const instance = new IdentityProvider(ID);
+      const settings = { ...baseSettings };
+      delete settings.redirectUri;
       const result = instance._constructPopupUrl(settings, defaultType);
       assert.equal(result.indexOf('redirect_uri='), -1);
     });
 
-    it('Skips scope if not set', () => {
-      const settings = Object.assign({}, baseSettings);
+    it('skips scope if not set', () => {
+      const instance = new IdentityProvider(ID);
+      const settings = { ...baseSettings };
       settings.scopes = undefined;
       instance.oauthConfig.scopes = undefined;
       const result = instance._constructPopupUrl(settings, defaultType);
       assert.equal(result.indexOf('scope=&'), -1);
     });
 
-    it('Skips include_granted_scopes if not set', () => {
-      const settings = Object.assign({}, baseSettings);
+    it('skips include_granted_scopes if not set', () => {
+      const instance = new IdentityProvider(ID);
+      const settings = { ...baseSettings };
       settings.includeGrantedScopes = undefined;
       const result = instance._constructPopupUrl(settings, defaultType);
       assert.equal(result.indexOf('include_granted_scopes='), -1);
     });
 
-    it('Skips prompt if not set', () => {
-      const settings = Object.assign({}, baseSettings);
+    it('skips prompt if not set', () => {
+      const instance = new IdentityProvider(ID);
+      const settings = { ...baseSettings };
       settings.interactive = undefined;
       const result = instance._constructPopupUrl(settings, defaultType);
       assert.equal(result.indexOf('prompt='), -1);
     });
 
-    it('Skips login_hint if not set', () => {
-      const settings = Object.assign({}, baseSettings);
+    it('skips login_hint if not set', () => {
+      const instance = new IdentityProvider(ID);
+      const settings = { ...baseSettings };
       settings.loginHint = undefined;
       const result = instance._constructPopupUrl(settings, defaultType);
       assert.equal(result.indexOf('login_hint='), -1);
     });
 
-    it('Do not inserts "?" when auth url already contains it', () => {
+    it('does not inserts "?" when auth url already contains it', () => {
       const settings = Object.assign({}, baseSettings);
       settings.authorizationUri = 'http://test.com/auth?custom=value';
       const result = instance._constructPopupUrl(settings, defaultType);
@@ -102,7 +108,7 @@ describe('IdentityProvider class - main process', () => {
   });
 
   describe('randomString()', () => {
-    let instance;
+    let instance = /** @type IdentityProvider */ (null);
     beforeEach(() => {
       instance = new IdentityProvider(ID, baseSettings);
     });
@@ -115,13 +121,13 @@ describe('IdentityProvider class - main process', () => {
   });
 
   describe('_computeScope()', () => {
-    let instance;
+    let instance = /** @type IdentityProvider */ (null);
     beforeEach(() => {
       instance = new IdentityProvider(ID, baseSettings);
     });
 
-    it('Returns empty stirng for no argument', () => {
-      const result = instance._computeScope();
+    it('Returns empty string for no argument', () => {
+      const result = instance._computeScope(undefined);
       assert.strictEqual(result, '');
     });
 
@@ -137,26 +143,26 @@ describe('IdentityProvider class - main process', () => {
   });
 
   describe('_camel()', () => {
-    let instance;
+    let instance = /** @type IdentityProvider */ (null);
     beforeEach(() => {
       instance = new IdentityProvider(ID, baseSettings);
     });
-    it('Renturns undefined if not changed', () => {
+    it('returns undefined if not changed', () => {
       const result = instance._camel('noop');
       assert.isUndefined(result);
     });
-    it('Renturns camel cased wirh "-"', () => {
+    it('returns camel cased with "-"', () => {
       const result = instance._camel('property-name-item');
       assert.equal(result, 'propertyNameItem');
     });
-    it('Renturns camel cased wirh "_"', () => {
+    it('returns camel cased with "_"', () => {
       const result = instance._camel('property_name_item');
       assert.equal(result, 'propertyNameItem');
     });
   });
 
   describe('Custom OAuth data', () => {
-    let instance;
+    let instance = /** @type IdentityProvider */ (null);
     const params = {
       type: 'custom_grant',
       clientId: 'test',
@@ -168,13 +174,13 @@ describe('IdentityProvider class - main process', () => {
         auth: {
           parameters: [{
             name: 'aqp1',
-            value: 'aqpv1',
+            value: 'AqQv1',
           }],
         },
         token: {
           parameters: [{
             name: 'tqp1',
-            value: 'tqpv1',
+            value: 'TqQv1',
           }],
           headers: [{
             name: 'th1',
@@ -189,7 +195,6 @@ describe('IdentityProvider class - main process', () => {
     };
     beforeEach(() => {
       instance = new IdentityProvider(ID, baseSettings);
-      // instance._settting = params;
       instance._state = 'test-state';
     });
 
@@ -204,21 +209,26 @@ describe('IdentityProvider class - main process', () => {
       });
       it('returns params in query string.', () => {
         const result = instance._applyCustomSettingsQuery('', params.customData.auth);
-        assert.equal(result, '?aqp1=aqpv1');
+        assert.equal(result, '?aqp1=AqQv1');
       });
     });
 
     describe('_constructPopupUrl()', () => {
-      it('Applies params to the url for implicit type', () => {
+      it('applies params to the url for implicit type', () => {
+        instance = new IdentityProvider(ID);
+        instance._state = 'test-state';
         const result = instance._constructPopupUrl(params, 'token');
         let compare = 'https://auth.domain.com?response_type=token&client_id=';
-        compare += 'test&&state=test-state&aqp1=aqpv1';
+        compare += 'test&state=test-state&aqp1=AqQv1';
         assert.equal(result, compare);
       });
-      it('Applies params to the url for authorization_code type', () => {
+
+      it('applies params to the url for authorization_code type', () => {
+        instance = new IdentityProvider(ID);
+        instance._state = 'test-state';
         const result = instance._constructPopupUrl(params, 'code');
         let compare = 'https://auth.domain.com?response_type=code&client_id=';
-        compare += 'test&&state=test-state&aqp1=aqpv1';
+        compare += 'test&state=test-state&aqp1=AqQv1';
         assert.equal(result, compare);
       });
     });
@@ -240,7 +250,7 @@ describe('IdentityProvider class - main process', () => {
   });
 
   describe('storeToken()', () => {
-    let instance;
+    let instance = /** @type IdentityProvider */ (null);
     let content;
     beforeEach(() => {
       instance = new IdentityProvider(ID, baseSettings);
@@ -251,7 +261,7 @@ describe('IdentityProvider class - main process', () => {
 
     it('Stores data in the store', () => {
       instance.storeToken(content);
-      const data = instance.tokentStore.get(instance.cacheKey);
+      const data = instance.tokenStore.get(instance.cacheKey);
       assert.deepEqual(data, content);
     });
 
@@ -262,11 +272,11 @@ describe('IdentityProvider class - main process', () => {
   });
 
   describe('restoreTokenInfo()', () => {
-    let instance;
+    let instance = /** @type IdentityProvider */ (null);
     let content;
     beforeEach(() => {
       instance = new IdentityProvider(ID, baseSettings);
-      instance.tokentStore.clear();
+      instance.tokenStore.clear();
       content = {
         accessToken: 'test-token',
       };
@@ -296,18 +306,14 @@ describe('IdentityProvider class - main process', () => {
   });
 
   describe('clearCache()', () => {
-    let instance;
+    let instance = /** @type IdentityProvider */ (null);
     let content;
     beforeEach(() => {
       instance = new IdentityProvider(ID, baseSettings);
       content = {
         accessToken: 'test-token',
-        access_token: 'test-token',
-        token_type: 'code',
         tokenType: 'code',
-        expires_in: 3600,
         expiresIn: 3600,
-        expires_at: 3600,
         expiresAt: 3600,
         expiresAssumed: false,
         state: '1234',
@@ -315,13 +321,14 @@ describe('IdentityProvider class - main process', () => {
       instance.storeToken(content);
     });
 
-    it('Removes stored data', async () => {
+    it('removes stored data', async () => {
       instance.clearCache();
       const result = await instance.restoreTokenInfo();
       assert.isUndefined(result);
     });
 
-    it('Clears tokenInfo', () => {
+    it('clears tokenInfo', () => {
+      // @ts-ignore
       instance.tokenInfo = 'test';
       instance.clearCache();
       assert.isUndefined(instance.tokenInfo);

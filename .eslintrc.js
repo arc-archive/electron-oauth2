@@ -66,10 +66,7 @@ module.exports = {
       },
     ],
     'max-len': [
-      'error',
-      {
-        code: 120,
-      },
+      'off',
     ],
     'object-curly-spacing': ['error', 'always'],
     'no-console': ['error'],

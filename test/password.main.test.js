@@ -24,9 +24,9 @@ describe('Password requests - main process', () => {
     let params;
     before(() => {
       params = {
-        response_type: responseType,
-        client_id: clientId,
-        token_uri: `http://localhost:${serverPort}/token`,
+        responseType,
+        clientId,
+        accessTokenUri: `http://localhost:${serverPort}/token`,
         scopes,
       };
       instance = new IdentityProvider(ID, params);
@@ -118,7 +118,7 @@ describe('Password requests - main process', () => {
         assert.equal(info.refreshToken, expectedRefreshToken);
       }));
 
-    it('Sends custom query parameetrs', () => instance.launchWebAuthFlow({
+    it('Sends custom query parameters', () => instance.launchWebAuthFlow({
       username,
       password,
       customData: {
@@ -159,7 +159,7 @@ describe('Password requests - main process', () => {
         assert.equal(info.custom_test_headers, true);
       }));
 
-    it('Sends custom body parameetrs', () => instance.launchWebAuthFlow({
+    it('Sends custom body parameters', () => instance.launchWebAuthFlow({
       username,
       password,
       customData: {

@@ -2,57 +2,8 @@ import { BrowserWindow } from 'electron';
 import { URLSearchParams } from 'url';
 import Store from 'electron-store';
 import { AuthError } from './AuthError';
-
-declare interface TokenInfo {
-  /**
-   * The access token.
-   */
-  access_token: string;
-  /**
-   * The access token.
-   */
-  accessToken: string;
-  /**
-   * The access token type.
-   */
-  token_type: string;
-  /**
-   * The access token type.
-   */
-  tokenType: string;
-  /**
-   * Access token expiration timeout.
-   */
-  expires_in: number;
-  /**
-   * Access token expiration timeout.
-   */
-  expiresIn: number;
-  /**
-   * Access token expiration timestamp
-   */
-  expires_at: number;
-  /**
-   * Access token expiration timestamp
-   */
-  expiresAt: number;
-  /**
-   * When `true` the `expires_in` and `expires_at` are assumed values (1 hour).
-   */
-  expiresAssumed: boolean;
-  /**
-   * The request state parameter.
-   */
-  state: string;
-  /**
-   * The list of scopes the token has been granted
-   */
-  scope?: string[];
-  /**
-   * Whether the token request was marked as interactive.
-   */
-  interactive?: boolean;
-}
+import { OAuth2Authorization } from '@advanced-rest-client/arc-types/src/authorization/Authorization';
+import { TokenInfo } from '@advanced-rest-client/arc-types/src/oauth2/OAuth2';
 
 declare interface CodeResponseObject {
   /**
@@ -69,144 +20,17 @@ declare interface CodeResponseObject {
   body: string;
 }
 
-declare interface CustomDataItem {
-  name: string;
-  value: string;
-}
-
-declare interface TokenCustomData {
-  parameters: CustomDataItem[];
-}
-
-declare interface CodeCustomData extends TokenCustomData {
-  headers: CustomDataItem[];
-  body: CustomDataItem[];
-}
-
-declare interface AuthCustomData {
-  auth: TokenCustomData;
-  token: CodeCustomData;
-}
-
-declare interface BaseOptions {
-  /**
-   * When the interactive flag is `true`, the function prompts the user
-   * (a showing an authorization popup) when necessary.
-   * When the flag is `false` or omitted, the function
-   * results with failure each time a user prompt is required.
-   */
-  interactive?: boolean;
-  /**
-   * List of scopes to authorize.
-   */
-  scopes?: string[];
-}
-
-declare interface AuthorizationOptions extends BaseOptions {
-  /**
-   * `code` or `token`
-   * Either `response_type` or `type` is required.
-   */
-  response_type?: string;
-  /**
-   * The same as `response_type`
-   */
-  type?: string;
-  /**
-   * The client ID used for authorization.
-   * Either `client_id` or `clientId` is required.
-   */
-  client_id?: string;
-  /**
-   * The same as `client_id`
-   */
-  clientId?: string;
-  /**
-   * Authorization URI.
-   * Either `auth_uri` or `authorizationUri` is required when `response_type` is code.
-   */
-  auth_uri?: string;
-  /**
-   * The same as `auth_uri`
-   */
-  authorizationUri?: string;
-  /**
-   * Code exchange URI.
-   * Either `token_uri` or `accessTokenUri` is required when `response_type` is code.
-   */
-  token_uri?: string;
-  /**
-   * The same as `token_uri`
-   */
-  accessTokenUri?: string;
-  /**
-   * Authorization redirect URI.
-   * Either `redirect_uri` or `redirectUri` is required.
-   */
-  redirect_uri?: string;
-  /**
-   * The same as `redirect_uri`
-   */
-  redirectUri?: string;
-  /**
-   * Authorization redirect URI.
-   * Either `client_secret` or `clientSecret` is required when `response_type` is code.
-   */
-  client_secret?: string;
-  /**
-   * The same as `client_secret`
-   */
-  clientSecret?: string;
-  /**
-   * Whether to include already granted scopes for this application.
-   * This parameter is used by Google.
-   */
-  include_granted_scopes?: boolean;
-  /**
-   * The same as `include_granted_scopes`.
-   */
-  includeGrantedScopes?: boolean;
-  /**
-   * User email, if known.
-   * This parameter is used by Google.
-   */
-  login_hint?: string;
-  /**
-   * The same as `login_hint`
-   */
-  loginHint?: string;
-  /**
-   * The OAuth 2 state parameter
-   */
-  state?: string;
-  /**
-   * The user name for password/custom grant type.
-   */
-  username?: string;
-  /**
-   * The password for password/custom grant type.
-   */
-  password?: string;
-  /**
-   * This is supported by `api-authorization-method` to enable
-   * RAML annotations to pass data to the request processor.
-   * This authorization engine complies with API Console
-   * requirements.
-   *
-   * https://github.com/advanced-rest-client/api-authorization-method/blob/stage/src/ApiOauth2MethodMixin.js#L126
-   */
-  customData?: AuthCustomData;
-}
-
-export declare interface TokenRemoveOptions {
-  clientId: string;
-  authorizationUri: string;
-}
 
 /**
  * A class to perform OAuth2 flow with given configuration.
  */
 export class IdentityProvider {
+  /**
+   * The user agent to be set on the browser window when requesting for a token
+   * in a browser flow. This allows to fix the issue with Google auth servers that
+   * stopped supporting default electron user agent.
+   */
+  userAgent: string;
   /**
    * Generated ID for the provider.
    */
@@ -214,17 +38,17 @@ export class IdentityProvider {
   /**
    * OAuth2 configuration for this provider.
    * If not set the settings argument from calling oauth flow function must
-   * contain all propertiers.
+   * contain all properties.
    * This is configuration object used when the OAuth configuration is read
    * from the package.json file.
    */
-  oauthConfig?: AuthorizationOptions;
+  oauthConfig?: OAuth2Authorization;
   /**
    * In memory cached token data
    */
   tokenInfo?: TokenInfo;
   /**
-   * Cached token key id in the persistant store.
+   * Cached token key id in the persistent store.
    */
   cacheKey: string;
   /**
@@ -236,13 +60,15 @@ export class IdentityProvider {
   /**
    * Instance of the store library to cache token data.
    */
-  tokentStore: Store;
+  tokenStore: Store;
+
+  currentOAuthWindow: BrowserWindow;
   /**
    *
-   * @param {String} id ID of the provider.
-   * @param {Object=} oauthConfig OAuth2 configuration.
+   * @param id ID of the provider.
+   * @param oauthConfig OAuth2 configuration.
    */
-  constructor(id: string, oauthConfig: AuthorizationOptions);
+  constructor(id: string, oauthConfig?: OAuth2Authorization);
 
   /**
    * Enables session in module's partition.
@@ -264,7 +90,7 @@ export class IdentityProvider {
    *
    * If the `interactive` flag is false the authorization prompt
    * window will never be opened and if the authorization scope has
-   * changed or user did not authorizaed the application this will
+   * changed or user did not authorized the application this will
    * result in Promise error.
    *
    * @param opts Authorization options
@@ -272,7 +98,7 @@ export class IdentityProvider {
    * if the app is not authorized. The promise will result with error (reject)
    * if there's an authorization error.
    */
-  getAuthToken(opts: AuthorizationOptions): Promise<TokenInfo>|undefined;
+  getAuthToken(opts?: OAuth2Authorization): Promise<TokenInfo>|undefined;
 
   /**
    * Runs the web authorization flow.
@@ -285,13 +111,13 @@ export class IdentityProvider {
    * - `login_hint` -  If your application knows which user is trying
    * to authenticate, it can use this parameter to provide
    * a hint to the Authentication Server.
-   * The server uses the hint to simplify the login flow either by prefilling
+   * The server uses the hint to simplify the login flow either by pre-filling
    * the email field in the sign-in form or by selecting the appropriate
    * multi-login session. Set the parameter value to an email address or `sub`
    * identifier.
    * @returns A promise with auth result.
    */
-  launchWebAuthFlow(opts: AuthorizationOptions): Promise<TokenInfo>;
+  launchWebAuthFlow(opts?: OAuth2Authorization): Promise<TokenInfo>;
 
   /**
    * Browser or server flow: open the initial popup.
@@ -299,7 +125,7 @@ export class IdentityProvider {
    * @param type `token` or `code`
    * @returns Full URL for the endpoint.
    */
-  _constructPopupUrl(settings: AuthorizationOptions, type: string): string;
+  _constructPopupUrl(settings: OAuth2Authorization, type: string): string;
 
   /**
    * Computes `scope` URL parameter from scopes array.
@@ -318,7 +144,7 @@ export class IdentityProvider {
    * @param authUrl Complete authorization url
    * @param settings Passed user settings
    */
-  _authorize(authUrl: string, settings: AuthorizationOptions): Promise<TokenInfo>;
+  _authorize(authUrl: string, settings: OAuth2Authorization): Promise<TokenInfo>;
 
   /**
    * Adds listeners to a window object.
@@ -398,7 +224,7 @@ export class IdentityProvider {
    * server.
    * @returns Request body.
    */
-  _getCodeEchangeBody(settings: AuthorizationOptions, code: string): string;
+  _getCodeExchangeBody(settings: OAuth2Authorization, code: string): string;
 
   /**
    * Camel case given name.
@@ -420,7 +246,7 @@ export class IdentityProvider {
    * function
    * @returns Promise resolved to the response string.
    */
-  _requestToken(url: string, body: string, settings: AuthorizationOptions): Promise<TokenInfo>;
+  _requestToken(url: string, body: string, settings: OAuth2Authorization): Promise<TokenInfo>;
 
   /**
    * Handler for the code request error event.
@@ -486,7 +312,7 @@ export class IdentityProvider {
    * function.
    * @returns Promise resolved to token info.
    */
-  authorizePassword(settings: AuthorizationOptions): Promise<TokenInfo>;
+  authorizePassword(settings: OAuth2Authorization): Promise<TokenInfo>;
 
   /**
    * Generates a payload message for password authorization.
@@ -495,7 +321,7 @@ export class IdentityProvider {
    * function
    * @return {string} Message body as defined in OAuth2 spec.
    */
-  _getPasswordBody(settings: AuthorizationOptions): Promise<TokenInfo>;
+  _getPasswordBody(settings: OAuth2Authorization): string;
 
   /**
    * Requests a token for `client_credentials` request type.
@@ -504,7 +330,7 @@ export class IdentityProvider {
    * function.
    * @returns Promise resolved to a token info object.
    */
-  authorizeClientCredentials(settings: AuthorizationOptions): Promise<TokenInfo>;
+  authorizeClientCredentials(settings: OAuth2Authorization): Promise<TokenInfo>;
 
   /**
    * Generates a payload message for client credentials.
@@ -513,7 +339,7 @@ export class IdentityProvider {
    * function
    * @return {String} Message body as defined in OAuth2 spec.
    */
-  _getClientCredentialsBody(settings: AuthorizationOptions): string;
+  _getClientCredentialsBody(settings: OAuth2Authorization): string;
 
   /**
    * Performs authorization on custom grant type.
@@ -522,7 +348,7 @@ export class IdentityProvider {
    * @param settings Settings object as for `authorize()` function.
    * @returns Promise resolved to a token info object.
    */
-  authorizeCustomGrant(settings: AuthorizationOptions): Promise<TokenInfo>;
+  authorizeCustomGrant(settings: OAuth2Authorization): Promise<TokenInfo>;
 
   /**
    * Creates a body for custom gran type.
@@ -532,11 +358,11 @@ export class IdentityProvider {
    * @param settings Settings object as for `authorize()` function.
    * @returns Request body.
    */
-  _getCustomGrantBody(settings: AuthorizationOptions): string;
+  _getCustomGrantBody(settings: OAuth2Authorization): string;
 
   /**
    * Creates an error object to be reported back to the app.
-   * @param oauthParams Map of oauth response parameteres
+   * @param oauthParams Map of oauth response parameters
    * @returns Error object.
    */
   _createResponseError(oauthParams: Object): AuthError;
@@ -578,7 +404,7 @@ export class IdentityProvider {
   restoreTokenInfo(): Promise<TokenInfo>
 
   /**
-   * Casches token data in local storage.
+   * Caches token data in local storage.
    *
    * @param tokenInfo The token info object
    * @returns Resolved promise when code is executed
@@ -590,7 +416,7 @@ export class IdentityProvider {
    *
    * @param tokenInfo Token info object
    * @returns True if the token is already expired and should be
-   * reneved.
+   * renewed.
    */
   isExpired(tokenInfo: TokenInfo): boolean;
 

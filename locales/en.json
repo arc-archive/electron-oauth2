@@ -1,6 +1,6 @@
 {
   "ERR_SERVER_STATE": "Server did not return the state parameter.",
-  "ERR_STATE_MISSMATCH": "The state value returned by the authorization server is invalid.",
+  "ERR_STATE_MISMATCH": "The state value returned by the authorization server is invalid.",
   "ERR_REQUEST_CANCELLED": "The request has been canceled by the user.",
   "ERR_CLIENT_ERROR": "Unable to run authorization flow. Make sure the OAuth2 config is valid.",
   "ERR_SERVER_ERROR": "No response from the server.",
