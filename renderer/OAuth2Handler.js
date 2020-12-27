@@ -2,8 +2,8 @@ import { ipcRenderer } from 'electron';
 import { AuthorizationEventTypes } from '@advanced-rest-client/arc-events';
 
 /** @typedef {import('@advanced-rest-client/arc-types').Authorization.OAuth2Authorization} OAuth2Authorization */
-/** @typedef {import('@advanced-rest-client/arc-types').OAuth2.TokenInfo} TokenInfo */
-/** @typedef {import('@advanced-rest-client/arc-types').OAuth2.TokenRemoveOptions} TokenRemoveOptions */
+/** @typedef {import('@advanced-rest-client/arc-types').Authorization.TokenInfo} TokenInfo */
+/** @typedef {import('@advanced-rest-client/arc-types').Authorization.TokenRemoveOptions} TokenRemoveOptions */
 /** @typedef {import('@advanced-rest-client/arc-events').OAuth2AuthorizeEvent} OAuth2AuthorizeEvent */
 /** @typedef {import('@advanced-rest-client/arc-events').OAuth2RemoveTokenEvent} OAuth2RemoveTokenEvent */
 
@@ -53,7 +53,7 @@ export class OAuth2Handler {
 
   /**
    * Prepares OAuth 2 config from the event detail.
-   * @param {object} detail Event's detail object
+   * @param {OAuth2Authorization} detail Event's detail object
    * @return {OAuth2Authorization}
    */
   [prepareEventDetail](detail) {
@@ -69,7 +69,6 @@ export class OAuth2Handler {
     }
     const opts = {
       interactive,
-      type: detail.type,
       clientId: detail.clientId,
       clientSecret: detail.clientSecret,
       authorizationUri: detail.authorizationUri,

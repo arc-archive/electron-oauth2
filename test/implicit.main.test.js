@@ -6,7 +6,7 @@ describe('Implicit requests - main process', () => {
   const ID = 'test-instance-id';
   const clientId = 'test-client-id';
   const scopes = ['test1', 'test2'];
-  const responseType = 'implicit';
+  const grantType = 'implicit';
   let serverPort;
   before(() => srv.create()
     .then((port) => serverPort = port));
@@ -18,7 +18,7 @@ describe('Implicit requests - main process', () => {
     let params;
     before(() => {
       params = {
-        responseType,
+        grantType,
         clientId,
         redirectUri: `http://localhost:${serverPort}/auth/popup`,
         authorizationUri: `http://localhost:${serverPort}/auth`,

@@ -1,6 +1,5 @@
 import { OAuth2AuthorizeEvent, OAuth2RemoveTokenEvent } from '@advanced-rest-client/arc-events';
-import { OAuth2Authorization } from '@advanced-rest-client/arc-types/src/authorization/Authorization';
-import { TokenInfo, TokenRemoveOptions } from '@advanced-rest-client/arc-types/src/oauth2/OAuth2';
+import { OAuth2Authorization, TokenInfo, TokenRemoveOptions } from '@advanced-rest-client/arc-types/src/authorization/Authorization';
 
 export declare const authorizeHandler: unique symbol;
 export declare const removeTokenHandler: unique symbol;
@@ -34,7 +33,7 @@ export declare class OAuth2Handler {
    * Prepares OAuth 2 config from the event detail.
    * @param detail Event's detail object
    */
-  [prepareEventDetail](detail: object): OAuth2Authorization;
+  [prepareEventDetail](detail: OAuth2Authorization): OAuth2Authorization;
 
   /**
    * Removes token from the cache.

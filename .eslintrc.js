@@ -42,7 +42,7 @@ module.exports = {
         devDependencies: ['**/test/**/*.js', '**/*.config.js', '**/*.conf.js'],
       },
     ],
-    // this is unescesary for node apps.
+    // this is unnecessary for node apps.
     'class-methods-use-this': 'off',
     'no-undef': 'error',
     'require-jsdoc': [

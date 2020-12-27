@@ -7,7 +7,7 @@ describe('Code requests - main process', () => {
   const ID = 'test-instance-id-code-request';
   const clientId = 'test-client-id-code-request';
   const scopes = ['code1', 'code1'];
-  const responseType = 'authorization_code';
+  const grantType = 'authorization_code';
   const clientSecret = 'test-client-code-secret';
   const expectedToken = 'test-code-token';
   const expectedTokenType = 'test-code-type';
@@ -23,7 +23,7 @@ describe('Code requests - main process', () => {
     let params;
     before(() => {
       params = {
-        responseType,
+        grantType,
         clientId,
         clientSecret,
         redirectUri: `http://localhost:${serverPort}/auth/popup`,

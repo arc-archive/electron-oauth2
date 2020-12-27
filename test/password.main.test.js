@@ -7,7 +7,7 @@ describe('Password requests - main process', () => {
   const ID = 'test-instance-id-password-request';
   const clientId = 'test-client-id-password-request';
   const scopes = ['password1', 'password1'];
-  const responseType = 'password';
+  const grantType = 'password';
   const username = 'test-user';
   const password = 'test-pwd';
   const expectedToken = 'test-password-token';
@@ -24,7 +24,7 @@ describe('Password requests - main process', () => {
     let params;
     before(() => {
       params = {
-        responseType,
+        grantType,
         clientId,
         accessTokenUri: `http://localhost:${serverPort}/token`,
         scopes,
