@@ -1,6 +1,7 @@
 const { assert } = require('chai');
 const { IdentityProvider } = require('../');
 const srv = require('./implicit-server.js');
+const { aTimeout } = require('./TestHelpers');
 
 describe('Implicit requests - main process', () => {
   const ID = 'test-instance-id';
@@ -8,8 +9,9 @@ describe('Implicit requests - main process', () => {
   const scopes = ['test1', 'test2'];
   const grantType = 'implicit';
   let serverPort;
-  before(() => srv.create()
-    .then((port) => serverPort = port));
+  before(async () => {
+    serverPort = await srv.create();
+  });
 
   after(() => srv.shutdown());
 
@@ -27,7 +29,7 @@ describe('Implicit requests - main process', () => {
       instance = new IdentityProvider(ID, params);
     });
 
-    it('Returns promise resolved to token', async () => {
+    it('resolves to the token info', async () => {
       const tokenInfo = await instance.launchWebAuthFlow();
       assert.typeOf(tokenInfo, 'object');
       assert.equal(tokenInfo.accessToken, 'test-token');
@@ -37,7 +39,7 @@ describe('Implicit requests - main process', () => {
       assert.deepEqual(tokenInfo.scope, ['test1', 'test2']);
     });
 
-    it('Clears the browser window after finish', async () => {
+    it('clears the browser window after finish', async () => {
       await instance.launchWebAuthFlow();
       assert.isUndefined(instance.currentOAuthWindow);
       const { BrowserWindow } = require('electron');
@@ -63,14 +65,15 @@ describe('Implicit requests - main process', () => {
       }
       assert.equal(error.code, 'test-error');
       assert.equal(error.message, 'test-error-message');
-      assert.isUndefined(error.interactive);
+      assert.isTrue(error.interactive);
       assert.typeOf(error.state, 'string');
     });
 
-    it('supports interactive state', async () => {
+    it('supports the interactive state', async () => {
       const result = instance.launchWebAuthFlow({
         interactive: false,
       });
+      await aTimeout(0);
       assert.isFalse(instance.currentOAuthWindow.isVisible());
       const tokenInfo = await result;
       assert.typeOf(tokenInfo, 'object');
@@ -115,7 +118,7 @@ describe('Implicit requests - main process', () => {
         },
       });
       assert.typeOf(tokenInfo, 'object');
-      assert.deepEqual(tokenInfo.scope, ['test1', 'test2', 'scope1', 'scope2']);
+      assert.deepEqual(tokenInfo.scope, ['scope1', 'scope2']);
     });
 
     it('stores token in the cache store', async () => {

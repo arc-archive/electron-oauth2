@@ -98,10 +98,10 @@ class TestBaseServer {
       res.end();
       return;
     }
-    const delim = this.responseType === 'token' ? '#' : '?';
+    const delimiter = this.responseType === 'token' ? '#' : '?';
     const type = oauthParams.get('response_type');
     let redirectUri = oauthParams.get('redirect_uri');
-    redirectUri += `${delim }state=${ oauthParams.get('state')}`;
+    redirectUri += `${delimiter }state=${ oauthParams.get('state')}`;
     if (type !== this.responseType) {
       this.redirectError(redirectUri, res, 'invalid_grant', 'Grand type not supported');
       return;
@@ -136,11 +136,11 @@ class TestBaseServer {
     res.end();
   }
 
-  _reportJsonError(res, error, meesage) {
+  _reportJsonError(res, error, message) {
     res.writeHead(400, { 'Content-Type': 'application/json' });
     res.write(JSON.stringify({
       error,
-      message: meesage,
+      message,
     }));
     res.end();
   }
@@ -201,8 +201,8 @@ class TestBaseServer {
           params.custom_test_body = true;
         }
         if (oauthParams.get('custom_test_url')) {
-          const uparams = new URLSearchParams(req.url.substr(req.url.indexOf('?') + 1));
-          if (uparams.get('custom_test_url')) {
+          const uParams = new URLSearchParams(req.url.substr(req.url.indexOf('?') + 1));
+          if (uParams.get('custom_test_url')) {
             params.custom_test_url = true;
           }
         }

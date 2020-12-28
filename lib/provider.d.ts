@@ -1,40 +1,118 @@
-import { BrowserWindow } from 'electron';
+/*
+ * @license
+ * Copyright 2016 The Advanced REST client authors <arc@mulesoft.com>
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+import { BrowserWindow, session, net } from 'electron';
 import { URLSearchParams } from 'url';
 import Store from 'electron-store';
-import { AuthError } from './AuthError';
-import { OAuth2Authorization } from '@advanced-rest-client/arc-types/src/authorization/Authorization';
-import { TokenInfo } from '@advanced-rest-client/arc-types/src/oauth2/OAuth2';
+import i18n from 'i18n';
+import { AuthorizationError, CodeError } from './AuthorizationError.js';
+import { applyCustomSettingsQuery, applyCustomSettingsBody, applyCustomSettingsHeaders } from './CustomParameters.js';
+import { sanityCheck, randomString, camel, generateCodeChallenge } from './Utils.js';
+import { OAuth2Authorization, TokenInfo } from '@advanced-rest-client/arc-types/src/authorization/Authorization';
+import { FetchResponse } from '../types.js';
 
-declare interface CodeResponseObject {
-  /**
-   * Response status
-   */
-  status: number;
-  /**
-   * Response headers
-   */
-  headers: object;
-  /**
-   * Response body
-   */
-  body: string;
-}
+/** @typedef {import('@advanced-rest-client/arc-types').Authorization.TokenInfo} TokenInfo */
+/** @typedef {import('@advanced-rest-client/arc-types').Authorization.OAuth2Authorization} OAuth2Authorization */
+/** @typedef {import('@advanced-rest-client/arc-types').Authorization.OAuth2CustomData} OAuth2CustomData */
+/** @typedef {import('@advanced-rest-client/arc-types').Authorization.OAuth2AuthorizationRequestCustomData} OAuth2AuthorizationRequestCustomData */
+/** @typedef {import('./provider').CodeResponseObject} CodeResponseObject */
+/** @typedef {import('../types').FetchResponse} FetchResponse */
 
+export declare const authorize: unique symbol;
+export declare const reportOAuthError: unique symbol;
+export declare const authorizeImplicitCode: unique symbol;
+export declare const authWindowCloseHandler: unique symbol;
+export declare const observeAuthWindowNavigation: unique symbol;
+export declare const sessionErrorListener: unique symbol;
+export declare const sessionCompletedListener: unique symbol;
+export declare const processPopupRawData: unique symbol;
+export declare const processTokenResponse: unique symbol;
+export declare const createTokenResponseError: unique symbol;
+export declare const createErrorParams: unique symbol;
+export declare const handleTokenInfo: unique symbol;
+export declare const tokenResponse: unique symbol;
+export declare const tokenInfoFromParams: unique symbol;
+export declare const computeTokenInfoScopes: unique symbol;
+export declare const computeExpires: unique symbol;
+export declare const processCodeResponse: unique symbol;
+export declare const handleTokenCodeError: unique symbol;
+export declare const authorizeClientCredentials: unique symbol;
+export declare const authorizePassword: unique symbol;
+export declare const authorizeCustomGrant: unique symbol;
+export declare const startSession: unique symbol;
+export declare const resolveFunction: unique symbol;
+export declare const rejectFunction: unique symbol;
 
 /**
  * A class to perform OAuth2 flow with given configuration.
+ *
+ * See README.md file for detailed description.
  */
 export class IdentityProvider {
   /**
-   * The user agent to be set on the browser window when requesting for a token
-   * in a browser flow. This allows to fix the issue with Google auth servers that
-   * stopped supporting default electron user agent.
+   * The code verifier used by the PKCE extension
    */
-  userAgent: string;
+  #codeVerifier: string;
+
   /**
-   * Generated ID for the provider.
+   * The current state parameter
    */
+  #state: string;
+
+  /**
+   * The main resolve function
+   */
+  [resolveFunction]: (info: TokenInfo) => void;
+
+  /**
+   * The main reject function
+   */
+  [rejectFunction]: (error: Error) => void;
+
+  /**
+   * The final OAuth 2 settings to use.
+   */
+  #settings: OAuth2Authorization;
+
+  /**
+   * Instance of the store library to cache token data.
+   */
+  tokenStore: Store;
+
+  #oauthWindowListening: boolean;
+
+  /**
+   * @type {NodeJS.Timeout}
+   */
+  #loadPopupTimeout: NodeJS.Timeout;
+
+  /**
+   * @type Electron.Session
+   */
+  #session: Electron.Session;
+
+  /**
+   * The request state parameter. If the state is not passed with the configuration one is generated.
+   */
+  get state(): string;
+
+  /**
+   * When PKCE extension is used, this holds the value of generated code verifier
+   */
+  get codeVerifier(): string;
+
   id: string;
+
   /**
    * OAuth2 configuration for this provider.
    * If not set the settings argument from calling oauth flow function must
@@ -42,29 +120,23 @@ export class IdentityProvider {
    * This is configuration object used when the OAuth configuration is read
    * from the package.json file.
    */
-  oauthConfig?: OAuth2Authorization;
+  oauthConfig: OAuth2Authorization;
+
   /**
-   * In memory cached token data
-   */
-  tokenInfo?: TokenInfo;
-  /**
-   * Cached token key id in the persistent store.
+   * The cached token key id in the persistent store.
    */
   cacheKey: string;
-  /**
-   * Latest generated state parameter for the request.
-   * If the settings object when calling any of the request OAuth flow
-   * methods has state parameter, it will be used.
-   */
-  _state: string;
-  /**
-   * Instance of the store library to cache token data.
-   */
-  tokenStore: Store;
 
-  currentOAuthWindow: BrowserWindow;
   /**
-   *
+   * The user agent to be set on the browser window when requesting for a token
+   * in a browser flow. This allows to fix the issue with Google auth servers that
+   * stopped supporting default electron user agent.
+   */
+  userAgent: string;
+
+  currentOAuthWindow?: Electron.BrowserWindow;
+
+  /**
    * @param id ID of the provider.
    * @param oauthConfig OAuth2 configuration.
    */
@@ -73,7 +145,7 @@ export class IdentityProvider {
   /**
    * Enables session in module's partition.
    */
-  _startSession(): void;
+  [startSession](): void;
 
   /**
    * Clears the state of the element.
@@ -86,6 +158,13 @@ export class IdentityProvider {
   clearCache(): void;
 
   /**
+   * A function that should be called before the authorization.
+   * It checks configuration integrity, and performs some sanity checks
+   * like proper values of the request URIs.
+   */
+  checkConfig(): void;
+
+  /**
    * Gets either cached authorization token or request for new one.
    *
    * If the `interactive` flag is false the authorization prompt
@@ -93,65 +172,43 @@ export class IdentityProvider {
    * changed or user did not authorized the application this will
    * result in Promise error.
    *
-   * @param opts Authorization options
-   * @returns A promise resulted to the auth token. It return undefined
-   * if the app is not authorized. The promise will result with error (reject)
-   * if there's an authorization error.
+   * @param settings Authorization options
+   * @return A promise resulted to the auth token.
+   * It return undefined if the app is not authorized. The promise will result
+   * with error (reject) if there's an authorization error.
    */
-  getAuthToken(opts?: OAuth2Authorization): Promise<TokenInfo>|undefined;
+  getAuthToken(settings?: OAuth2Authorization): Promise<TokenInfo>;
 
   /**
    * Runs the web authorization flow.
-   * @param {Object} opts Authorization options
-   * - `interactive` {Boolean} If the interactive flag is `true`,
-   * `launchWebAuthFlow` will prompt the user as necessary.
-   * When the flag is `false` or omitted, `launchWebAuthFlow`
-   * will return failure any time a prompt would be required.
-   * - `scopes` {Array<String>} List of scopes to authorize
-   * - `login_hint` -  If your application knows which user is trying
-   * to authenticate, it can use this parameter to provide
-   * a hint to the Authentication Server.
-   * The server uses the hint to simplify the login flow either by pre-filling
-   * the email field in the sign-in form or by selecting the appropriate
-   * multi-login session. Set the parameter value to an email address or `sub`
-   * identifier.
-   * @returns A promise with auth result.
+   * @param settings Authorization options
+   * @return A promise with auth result.
    */
-  launchWebAuthFlow(opts?: OAuth2Authorization): Promise<TokenInfo>;
+  launchWebAuthFlow(settings?: OAuth2Authorization): Promise<TokenInfo>;
+
+  /**
+   * Starts the authorization process.
+   */
+  [authorize](): void;
+
+  /**
+   * Starts the authorization flow for the `implicit` and `authorization_code` flows.
+   * If the `interactive` flag is configured, then it won't show the window.
+   */
+  [authorizeImplicitCode](): Promise<void>;
 
   /**
    * Browser or server flow: open the initial popup.
-   * @param settings Settings passed to the authorize function.
-   * @param type `token` or `code`
-   * @returns Full URL for the endpoint.
+   * @return Full URL for the endpoint.
    */
-  _constructPopupUrl(settings: OAuth2Authorization, type: string): string;
-
-  /**
-   * Computes `scope` URL parameter from scopes array.
-   *
-   * @param scopes List of scopes to use with the request.
-   * @returns Computed scope value.
-   */
-  _computeScope(scopes: string[]): string;
-
-  /**
-   * Authorizes the user in the OAuth authorization endpoint.
-   * By default it authorizes the user using a popup that displays
-   * authorization screen. When `interactive` property is set to `false`
-   * on the `settings` object then it will not render `BrowserWindow`.
-   *
-   * @param authUrl Complete authorization url
-   * @param settings Passed user settings
-   */
-  _authorize(authUrl: string, settings: OAuth2Authorization): Promise<TokenInfo>;
+  constructPopupUrl(): Promise<string>;
 
   /**
    * Adds listeners to a window object.
    *
    * @param win Window object to observe events on.
    */
-  _observeAuthWindowNavigation(win: BrowserWindow): void;
+  [observeAuthWindowNavigation](win: Electron.BrowserWindow): void;
 
   /**
    * Removes event listeners, closes the window and cleans the property.
@@ -159,266 +216,50 @@ export class IdentityProvider {
   unobserveAuthWindow(): void;
 
   /**
+   * Handler for the auth window close event.
+   * If the response wasn't reported so far it reports error.
+   */
+  [authWindowCloseHandler](): void;
+
+  /**
    * Reports authorization error back to the application.
    *
    * This operation clears the promise object.
    *
-   * @param error Error details to report to the app.
-   * It should contain `code` and `message` properties.
+   * @param message The message to report
+   * @param code Error code
    */
-  _reportOAuthError(error: AuthError): void;
+  [reportOAuthError](message: string, code?: string): void;
 
   /**
    * Parses response URL and reports the result of the request.
    *
    * @param url Redirected response URL
    */
-  _reportOAuthResult(url: string): void;
+  [processPopupRawData](url: string): void;
 
   /**
    * Processes OAuth2 server query string response.
    *
    * @param oauthParams Created from parameters params.
    */
-  _processPopupResponseData(oauthParams: URLSearchParams): void;
+  [processTokenResponse](oauthParams: URLSearchParams): Promise<void>;
 
   /**
    * Creates a token info object from query parameters
    */
-  _tokenInfoFromParams(oauthParams: URLSearchParams): TokenInfo;
+  [tokenInfoFromParams](oauthParams: URLSearchParams): TokenInfo;
 
   /**
    * Computes the final list of granted scopes.
    * It is a list of scopes received in the response or the list of requested scopes.
-   * Because the user may change the list of scopes during authorization
+   * Because the user may change the list of scopes during the authorization process
    * the received list of scopes can be different than the one requested by the user.
    *
-   * @param scope The `scope` parameter received with the response. May be
-   * `undefined`.
-   * @returns The list of scopes for the token.
+   * @param scope The `scope` parameter received with the response. It's null safe.
+   * @return {string[]} The list of scopes for the token.
    */
-  _computeTokenInfoScopes(scope: string): string[]|undefined;
-
-  /**
-   * Resolves the main promise with token data.
-   * @param info Auth token information
-   */
-  _handleTokenInfo(info: TokenInfo): void;
-
-  /**
-   * Handler fore an error that happened during code exchange.
-   */
-  _handleTokenCodeError(e: Error): void;
-
-  /**
-   * Exchange code for token.
-   *
-   * @param code Returned code from the authorization endpoint.
-   */
-  _exchangeCode(code: string): Promise<void>;
-
-  /**
-   * Returns a body value for the code exchange request.
-   * @param settings Initial settings object.
-   * @param code Authorization code value returned by the authorization
-   * server.
-   * @returns Request body.
-   */
-  _getCodeExchangeBody(settings: OAuth2Authorization, code: string): string;
-
-  /**
-   * Camel case given name.
-   *
-   * @param name Value to camel case.
-   * @returns Camel cased name
-   */
-  _camel(name: string): string|undefined
-
-  /**
-   * Requests for token from the authorization server for `code`, `password`,
-   * `client_credentials` and custom grant types.
-   *
-   * @param url Base URI of the endpoint. Custom properties will be
-   * applied to the final URL.
-   * @param body Generated body for given type. Custom properties will
-   * be applied to the final body.
-   * @param settings Settings object passed to the `authorize()`
-   * function
-   * @returns Promise resolved to the response string.
-   */
-  _requestToken(url: string, body: string, settings: OAuth2Authorization): Promise<TokenInfo>;
-
-  /**
-   * Handler for the code request error event.
-   * Rejects the promise with error description.
-   *
-   * @param error An error object
-   * @param reject Promise's reject function.
-   */
-  _processTokenResponseErrorHandler(error: Error, reject: Function): void;
-
-  /**
-   * Handler for the code request load event.
-   * Processes the response and either rejects the promise with an error
-   * or resolves it to token info object.
-   *
-   * @param response A response containing `status` and `body  `
-   * @param resolve Resolve function
-   * @param reject Reject function
-   */
-  _processTokenResponseHandler(response: CodeResponseObject, resolve: Function, reject: Function): void;
-
-  /**
-   * Processes token request body and produces map of values.
-   *
-   * @param body Body received in the response.
-   * @param contentType Response content type.
-   * @returns Response as an object.
-   * @throws {Error} Exception when body is invalid.
-   */
-  _processCodeResponse(body: string, contentType: string): TokenInfo;
-
-  /**
-   * Applies custom properties defined in the OAuth settings object to the URL.
-   *
-   * @param url Generated URL for an endpoint.
-   * @param data `customData.[type]` property from the settings object.
-   * The type is either `auth` or `token`.
-   */
-  _applyCustomSettingsQuery(url: string, data: object): string;
-
-  /**
-   * Applies custom headers from the settings object
-   *
-   * @param request Instance of the request object.
-   * @param data Value of settings' `customData` property
-   */
-  _applyCustomSettingsHeaders(request: Electron.ClientRequest, data: Object): void;
-
-  /**
-   * Applies custom body properties from the settings to the body value.
-   *
-   * @param body Already computed body for OAuth request. Custom
-   * properties are appended at the end of OAuth string.
-   * @param data Value of settings' `customData` property
-   * @returns Request body
-   */
-  _applyCustomSettingsBody(body: string, data: object): string;
-
-  /**
-   * Requests a token for `password` request type.
-   *
-   * @param settings The same settings as passed to `authorize()`
-   * function.
-   * @returns Promise resolved to token info.
-   */
-  authorizePassword(settings: OAuth2Authorization): Promise<TokenInfo>;
-
-  /**
-   * Generates a payload message for password authorization.
-   *
-   * @param {Object} settings Settings object passed to the `authorize()`
-   * function
-   * @return {string} Message body as defined in OAuth2 spec.
-   */
-  _getPasswordBody(settings: OAuth2Authorization): string;
-
-  /**
-   * Requests a token for `client_credentials` request type.
-   *
-   * @param settings The same settings as passed to `authorize()`
-   * function.
-   * @returns Promise resolved to a token info object.
-   */
-  authorizeClientCredentials(settings: OAuth2Authorization): Promise<TokenInfo>;
-
-  /**
-   * Generates a payload message for client credentials.
-   *
-   * @param {Object} settings Settings object passed to the `authorize()`
-   * function
-   * @return {String} Message body as defined in OAuth2 spec.
-   */
-  _getClientCredentialsBody(settings: OAuth2Authorization): string;
-
-  /**
-   * Performs authorization on custom grant type.
-   * This extension is described in OAuth 2.0 spec.
-   *
-   * @param settings Settings object as for `authorize()` function.
-   * @returns Promise resolved to a token info object.
-   */
-  authorizeCustomGrant(settings: OAuth2Authorization): Promise<TokenInfo>;
-
-  /**
-   * Creates a body for custom gran type.
-   * It does not assume any parameter to be required.
-   * It applies all known OAuth 2.0 parameters and then custom parameters
-   *
-   * @param settings Settings object as for `authorize()` function.
-   * @returns Request body.
-   */
-  _getCustomGrantBody(settings: OAuth2Authorization): string;
-
-  /**
-   * Creates an error object to be reported back to the app.
-   * @param oauthParams Map of oauth response parameters
-   * @returns Error object.
-   */
-  _createResponseError(oauthParams: Object): AuthError;
-
-  /**
-   * Handler for the auth window close event.
-   * If the response wasn't reported so far it reports error.
-   */
-  _authWindowCloseHandler(): void;
-
-  /**
-   * A handler for `onComplete` of session's webRequest object.
-   */
-  _sessionCompletedListener(detail: Object): void;
-
-  /**
-   * Checks if current token is authorized for given list of scopes.
-   *
-   * @param tokenInfo A token info object.
-   * @param scopes List of scopes to authorize.
-   * @returns True if requested scope is already authorized with this
-   * token.
-   */
-  isTokenAuthorized(tokenInfo: TokenInfo, scopes: string[]): boolean;
-
-  /**
-   * Returns cached token info.
-   *
-   * @returns Token info object or `undefined` if there's
-   * no cached token or cached token expired.
-   */
-  getTokenInfo(): Promise<TokenInfo>;
-
-  /**
-   * Restores authorization token information from the local store.
-   *
-   * @returns Token info object or `undefined` if not set or expired.
-   */
-  restoreTokenInfo(): Promise<TokenInfo>
-
-  /**
-   * Caches token data in local storage.
-   *
-   * @param tokenInfo The token info object
-   * @returns Resolved promise when code is executed
-   */
-  storeToken(tokenInfo: TokenInfo): Promise<void>;
-
-  /**
-   * Checks if the token already expired.
-   *
-   * @param tokenInfo Token info object
-   * @returns True if the token is already expired and should be
-   * renewed.
-   */
-  isExpired(tokenInfo: TokenInfo): boolean;
+  [computeTokenInfoScopes](scope: string): string[];
 
   /**
    * Computes token expiration time.
@@ -426,14 +267,168 @@ export class IdentityProvider {
    * in the future when when the token expires.
    *
    * @param tokenInfo Token info object
+   * @return A copy with updated properties.
    */
-  computeExpires(tokenInfo: TokenInfo): void;
+  [computeExpires](tokenInfo: TokenInfo): TokenInfo
 
   /**
-   * Generates a random string to be used as a `state` parameter, sets the
-   * `_state` property to generated text and returns the value.
+   * Processes token info object when it's ready.
    *
-   * @returns Generated state parameter.
+   * @param info Token info returned from the server.
    */
-  randomString(): string;
+  [handleTokenInfo](info: TokenInfo): void;
+
+  /**
+   * Exchanges the authorization code for authorization token.
+   *
+   * @param code Returned code from the authorization endpoint.
+   * @return The token info when the request was a success.
+   */
+  exchangeCode(code: string): Promise<TokenInfo>;
+
+  /**
+   * Returns a body value for the code exchange request.
+   * @param code Authorization code value returned by the authorization server.
+   * @return Request body.
+   */
+  getCodeRequestBody(code: string): string;
+
+  /**
+   * Requests for token from the authorization server for `code`, `password`, `client_credentials` and custom grant types.
+   *
+   * @param url Base URI of the endpoint. Custom properties will be applied to the final URL.
+   * @param body Generated body for given type. Custom properties will be applied to the final body.
+   * @return Promise resolved to the response string.
+   */
+  requestToken(url: string, body: string): Promise<TokenInfo>;
+
+  fetchToken(url: string, headers: object, body: string): Promise<FetchResponse>;
+
+  /**
+   * Processes code response body and produces map of values.
+   *
+   * @param body Body received in the response.
+   * @param mime Response content type.
+   * @return Response as an object.
+   * @throws {Error} Exception when the body is invalid.
+   */
+  [processCodeResponse](body: string, mime: string): TokenInfo;
+
+  /**
+   * A handler for the error that happened during code exchange.
+   * @param {Error} e
+   */
+  [handleTokenCodeError](e: Error): void;
+
+  /**
+   * Requests a token for `client_credentials` request type.
+   *
+   * This method resolves the main promise set by the `authorize()` function.
+   *
+   * @return {Promise<void>} Promise resolved to a token info object.
+   */
+  [authorizeClientCredentials](): Promise<void>;
+
+  /**
+   * Generates a payload message for client credentials.
+   *
+   * @return Message body as defined in OAuth2 spec.
+   */
+  getClientCredentialsBody(): string;
+
+  /**
+   * Requests a token for `client_credentials` request type.
+   *
+   * This method resolves the main promise set by the `authorize()` function.
+   *
+   * @return {} Promise resolved to a token info object.
+   */
+  [authorizePassword](): Promise<void>;
+
+  /**
+   * Generates a payload message for password authorization.
+   *
+   * @return Message body as defined in OAuth2 spec.
+   */
+  getPasswordBody(): string;
+
+  /**
+   * Performs authorization on custom grant type.
+   * This extension is described in OAuth 2.0 spec.
+   *
+   * This method resolves the main promise set by the `authorize()` function.
+   *
+   * @return Promise resolved when the request finish.
+   */
+  [authorizeCustomGrant](): Promise<void>;
+
+  /**
+   * Generates a payload message for the custom grant.
+   *
+   * @return Message body as defined in OAuth2 spec.
+   */
+  getCustomGrantBody(): string;
+
+  /**
+   * Processes the response returned by the popup or the iframe.
+   * @param oauthParams
+   * @return Parameters for the [reportOAuthError]() function
+   */
+  [createTokenResponseError](oauthParams: URLSearchParams): string[];
+
+  /**
+   * Creates arguments for the error function from error response
+   * @param code Returned from the authorization server error code
+   * @param description Returned from the authorization server error description
+   * @return Parameters for the [reportOAuthError]() function
+   */
+  [createErrorParams](code: string, description?: string): string[];
+
+  /**
+   * A handler for `onComplete` of session's webRequest object.
+   */
+  [sessionCompletedListener](detail: Electron.OnCompletedListenerDetails): void;
+
+  /**
+   * A handler for the `onErrorOccurred` event of the session's webRequest object.
+   */
+  [sessionErrorListener](detail: Electron.OnErrorOccurredListenerDetails): void;
+
+  /**
+   * Checks if current token is authorized for given list of scopes.
+   *
+   * @param tokenInfo A token info object.
+   * @param scopes List of scopes to authorize.
+   * @return True if requested scope is already authorized with this token.
+   */
+  isTokenAuthorized(tokenInfo: TokenInfo, scopes: string[]): boolean;
+
+  /**
+   * Returns cached token info.
+   *
+   * @return Token info object or `undefined` if there's no cached token or cached token expired.
+   */
+  getTokenInfo(): Promise<TokenInfo|undefined>;
+
+  /**
+   * Restores authorization token information from the local store.
+   *
+   * @return Token info object or `undefined` if not set or expired.
+   */
+  restoreTokenInfo(): Promise<TokenInfo>;
+
+  /**
+   * Caches token data in local storage.
+   *
+   * @return Resolved promise when code is executed
+   */
+  storeToken(tokenInfo: TokenInfo): Promise<void>;
+
+  /**
+   * Checks if the token already expired.
+   *
+   * @param tokenInfo Token info object
+   * @return True if the token is already expired and should be renewed.
+   */
+  isExpired(tokenInfo: TokenInfo): boolean;
 }

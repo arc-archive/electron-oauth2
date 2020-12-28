@@ -67,7 +67,7 @@ export class OAuth2Handler {
     } else {
       state = detail.state;
     }
-    const opts = {
+    const opts = /** @type OAuth2Authorization */ ({
       interactive,
       clientId: detail.clientId,
       clientSecret: detail.clientSecret,
@@ -81,7 +81,7 @@ export class OAuth2Handler {
       customData: detail.customData,
       includeGrantedScopes: detail.includeGrantedScopes,
       loginHint: detail.loginHint,
-    };
+    });
     return opts;
   }
 

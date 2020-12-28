@@ -3,113 +3,279 @@ const { IdentityProvider } = require('../');
 
 describe('Request body generators - main process', () => {
   const ID = 'test-instance-id';
-  const params = {
-    type: 'custom_grant',
-    clientId: 'test client id',
-    clientSecret: 'test client secret',
-    authorizationUri: 'https://auth.domain.com',
-    username: 'test username',
-    password: 'test password',
-    scopes: ['one', 'two'],
-  };
 
-  describe('_getCodeExchangeBody()', () => {
-    let instance = /** @type IdentityProvider */ (null);
-    before(() => {
-      instance = new IdentityProvider(ID, { ...params });
+  describe('getCodeRequestBody()', () => {
+    const baseSettings = Object.freeze({
+      clientId: 'test client id',
+      redirectUri: 'https://auth.api.com/oauth',
+      clientSecret: 'client secret',
     });
-    it('Applies params to the body', () => {
-      const result = instance._getCodeExchangeBody(params, 'test code');
-      let compare = 'grant_type=authorization_code&client_id=test%20client%20id';
-      compare += '&code=test%20code&client_secret=test%20client%20secret';
-      assert.equal(result, compare);
+    const code = 'my code';
+
+    it('has the grant_type', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getCodeRequestBody(code);
+      assert.include(result, 'grant_type=authorization_code&');
+    });
+
+    it('has the client_id', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getCodeRequestBody(code);
+      assert.include(result, 'client_id=test+client+id&');
+    });
+
+    it('has the redirect_uri', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getCodeRequestBody(code);
+      assert.include(result, 'redirect_uri=https%3A%2F%2Fauth.api.com%2Foauth&');
+    });
+
+    it('has the code', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getCodeRequestBody(code);
+      assert.include(result, 'code=my+code&');
+    });
+
+    it('has the client_secret', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getCodeRequestBody(code);
+      assert.include(result, 'client_secret=client+secret');
+    });
+
+    it('ignores the redirect_uri when not set', () => {
+      const config = { ...baseSettings };
+      delete config.redirectUri;
+      const auth = new IdentityProvider(ID, config);
+      const result = auth.getCodeRequestBody(code);
+      assert.isFalse(result.includes('redirect_uri'));
+    });
+
+    it('sets empty client_secret when not set', () => {
+      const config = { ...baseSettings };
+      delete config.clientSecret;
+      const auth = new IdentityProvider(ID, config);
+      const result = auth.getCodeRequestBody(code);
+      assert.isTrue(result.endsWith('client_secret='));
     });
   });
 
-  describe('_getClientCredentialsBody()', () => {
-    let instance = /** @type IdentityProvider */ (null);
-    beforeEach(() => {
-      instance = new IdentityProvider(ID, { ...params });
+  describe('getClientCredentialsBody()', () => {
+    const baseSettings = Object.freeze({
+      clientId: 'test client id',
+      scopes: ['scope1', 'scope2'],
+      clientSecret: 'client secret',
     });
 
-    it('grant_type is set', () => {
-      const result = instance._getClientCredentialsBody({});
-      assert.equal(result.indexOf('grant_type=client_credentials'), 0);
+    it('has the grant_type', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getClientCredentialsBody();
+      assert.include(result, 'grant_type=client_credentials&');
     });
 
-    it('skips client_id is not set', () => {
-      instance = new IdentityProvider(ID);
-      const result = instance._getClientCredentialsBody({});
-      assert.equal(result.indexOf('client_id='), -1);
+    it('has the client_id', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getClientCredentialsBody();
+      assert.include(result, 'client_id=test+client+id&');
     });
 
-    it('skips client_secret is not set', () => {
-      instance = new IdentityProvider(ID);
-      const result = instance._getClientCredentialsBody({});
-      assert.equal(result.indexOf('client_secret='), -1);
+    it('has the client_secret', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getClientCredentialsBody();
+      assert.include(result, 'client_secret=client+secret');
     });
 
-    it('skips scope is not set', () => {
-      instance = new IdentityProvider(ID);
-      const result = instance._getClientCredentialsBody({});
-      assert.equal(result.indexOf('scope='), -1);
+    it('has the scope', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getClientCredentialsBody();
+      assert.include(result, 'scope=scope1+scope2');
     });
-    it('client_id is set', () => {
-      const result = instance._getClientCredentialsBody(params);
-      assert.notEqual(result.indexOf('&client_id=test%20client%20id'), -1);
+
+    it('ignores the client_secret when not set', () => {
+      const config = { ...baseSettings };
+      delete config.clientSecret;
+      const auth = new IdentityProvider(ID, config);
+      const result = auth.getClientCredentialsBody();
+      assert.isFalse(result.includes('client_secret'));
     });
-    it('client_secret is set', () => {
-      const result = instance._getClientCredentialsBody(params);
-      assert.notEqual(result.indexOf('&client_secret=test%20client%20secret'), -1);
-    });
-    it('scope is set', () => {
-      const result = instance._getClientCredentialsBody(params);
-      assert.notEqual(result.indexOf('&scope=one%20two'), -1);
+
+    it('ignores the scope when not set', () => {
+      const config = { ...baseSettings };
+      delete config.scopes;
+      const auth = new IdentityProvider(ID, config);
+      const result = auth.getClientCredentialsBody();
+      assert.isFalse(result.includes('scope='));
     });
   });
 
-  describe('_getPasswordBody()', () => {
-    let instance = /** @type IdentityProvider */ (null);
-    beforeEach(() => {
-      instance = new IdentityProvider(ID, { ...params });
+  describe('getPasswordBody()', () => {
+    const baseSettings = Object.freeze({
+      clientId: 'test client id',
+      scopes: ['scope1', 'scope2'],
+      username: 'uname',
+      password: 'passwd',
+      clientSecret: 'test-secret',
     });
 
-    it('grant_type is set', () => {
-      const result = instance._getPasswordBody(params);
-      assert.equal(result.indexOf('grant_type=password'), 0);
+    it('has the grant_type', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getPasswordBody();
+      assert.include(result, 'grant_type=password&');
     });
 
-    it('username is set', () => {
-      const result = instance._getPasswordBody(params);
-      assert.notEqual(result.indexOf('&username=test%20username'), -1);
+    it('has the username', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getPasswordBody();
+      assert.include(result, 'username=uname');
     });
 
-    it('password is set', () => {
-      const result = instance._getPasswordBody(params);
-      assert.notEqual(result.indexOf('&password=test%20password'), -1);
+    it('has the password', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getPasswordBody();
+      assert.include(result, 'password=passwd');
     });
 
-    it('Skips client_id is not set', () => {
-      instance = new IdentityProvider(ID);
-      const copy = { ...params };
-      delete copy.clientId;
-      const result = instance._getPasswordBody(copy);
-      assert.equal(result.indexOf('client_id='), -1);
+    it('has the client_id', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getPasswordBody();
+      assert.include(result, 'client_id=test+client+id&');
     });
-    it('Skips scope is not set', () => {
-      instance.oauthConfig.scopes = undefined;
-      const copy = { ...params };
-      delete copy.scopes;
-      const result = instance._getPasswordBody(copy);
-      assert.equal(result.indexOf('scope='), -1);
+
+    it('has the scope', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getPasswordBody();
+      assert.include(result, 'scope=scope1+scope2');
     });
-    it('client_id is set', () => {
-      const result = instance._getPasswordBody(params);
-      assert.notEqual(result.indexOf('&client_id=test%20client%20id'), -1);
+
+    it('has the client_secret', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getPasswordBody();
+      assert.include(result, 'client_secret=test-secret');
     });
-    it('scope is set', () => {
-      const result = instance._getPasswordBody(params);
-      assert.notEqual(result.indexOf('&scope=one%20two'), -1);
+
+    it('ignores the client_id when not set', () => {
+      const config = { ...baseSettings };
+      delete config.clientId;
+      const auth = new IdentityProvider(ID, config);
+      const result = auth.getPasswordBody();
+      assert.isFalse(result.includes('client_id'));
+    });
+
+    it('ignores the scope when not set', () => {
+      const config = { ...baseSettings };
+      delete config.scopes;
+      const auth = new IdentityProvider(ID, config);
+      const result = auth.getPasswordBody();
+      assert.isFalse(result.includes('scope='));
+    });
+
+    it('ignores the client_secret when not set', () => {
+      const config = { ...baseSettings };
+      delete config.clientSecret;
+      const auth = new IdentityProvider(ID, config);
+      const result = auth.getPasswordBody();
+      assert.isFalse(result.includes('client_secret'));
+    });
+  });
+
+  describe('getCustomGrantBody()', () => {
+    const baseSettings = Object.freeze({
+      clientId: 'test client id',
+      scopes: ['scope1', 'scope2'],
+      username: 'uname',
+      password: 'passwd',
+      clientSecret: 'client secret',
+      redirectUri: 'https://auth.api.com/oauth',
+      grantType: 'custom',
+    });
+
+    it('has the grant_type', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getCustomGrantBody();
+      assert.include(result, 'grant_type=custom&');
+    });
+
+    it('has the username', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getCustomGrantBody();
+      assert.include(result, 'username=uname');
+    });
+
+    it('ignores the username when not set', () => {
+      const config = { ...baseSettings };
+      delete config.username;
+      const auth = new IdentityProvider(ID, config);
+      const result = auth.getCustomGrantBody();
+      assert.isFalse(result.includes('username'));
+    });
+
+    it('has the password', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getCustomGrantBody();
+      assert.include(result, 'password=passwd');
+    });
+
+    it('ignores the password when not set', () => {
+      const config = { ...baseSettings };
+      delete config.password;
+      const auth = new IdentityProvider(ID, config);
+      const result = auth.getCustomGrantBody();
+      assert.isFalse(result.includes('password'));
+    });
+
+    it('has the client_id', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getCustomGrantBody();
+      assert.include(result, 'client_id=test+client+id&');
+    });
+
+    it('ignores the client_id when not set', () => {
+      const config = { ...baseSettings };
+      delete config.clientId;
+      const auth = new IdentityProvider(ID, config);
+      const result = auth.getCustomGrantBody();
+      assert.isFalse(result.includes('client_id'));
+    });
+
+    it('has the scope', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getCustomGrantBody();
+      assert.include(result, 'scope=scope1+scope2');
+    });
+
+    it('ignores the scope when not set', () => {
+      const config = { ...baseSettings };
+      delete config.scopes;
+      const auth = new IdentityProvider(ID, config);
+      const result = auth.getCustomGrantBody();
+      assert.isFalse(result.includes('scope='));
+    });
+
+    it('has the redirect_uri', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getCustomGrantBody();
+      assert.include(result, 'redirect_uri=https%3A%2F%2Fauth.api.com%2Foauth&');
+    });
+
+    it('ignores the redirect_uri when not set', () => {
+      const config = { ...baseSettings };
+      delete config.redirectUri;
+      const auth = new IdentityProvider(ID, config);
+      const result = auth.getCustomGrantBody();
+      assert.isFalse(result.includes('redirect_uri'));
+    });
+
+    it('has the client_secret', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getCustomGrantBody();
+      assert.include(result, 'client_secret=client+secret');
+    });
+
+    it('ignores the client_secret when not set', () => {
+      const config = { ...baseSettings };
+      delete config.clientSecret;
+      const auth = new IdentityProvider(ID, config);
+      const result = auth.getCustomGrantBody();
+      assert.isFalse(result.includes('client_secret'));
     });
   });
 });

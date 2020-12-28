@@ -14,6 +14,9 @@
   "ERR_UNAUTHORIZED_CLIENT": "The authenticated client is not authorized to use this authorization grant type.",
   "ERR_UNSUPPORTED_GRANT_TYPE": "The authorization grant type is not supported by the authorization server.",
   "ERR_INVALID_SCOPE": "The requested scope is invalid, unknown, malformed, or exceeds the scope granted by the resource owner.",
+  "ERR_INVALID_URL_DATA": "Invalid response from the redirect page.",
+  "ERR_UNKNOWN_STATE": "The authorization process has an invalid state. This should never happen.",
+  "ERR_NO_CODE": "The authorization server did not returned the authorization code.",
   "Client error: %s": "Client error: %s",
   "Authorization server error. Response code is %s": "Authorization server error. Response code is %s"
 }

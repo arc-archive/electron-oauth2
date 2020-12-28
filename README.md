@@ -73,36 +73,30 @@ The token info object returned by the authorization flow.
 Contains OAuth2 properties returned by the OAuth server with camel case
 representation of each property.
 
-#### access_token
+#### accessToken
 
 String. Token value.
-Also available under `accessToken` key.
 
-#### token_type
+#### tokenType
 
 String. Token type. This parameter is required by OAuth 2 spec to be returned by the server.
-Also available under `tokenType` key.
 
 #### state
 
 String. The state parameter returned by the server. When client don't specify state parameter the library adds its own generated state. The response is checked for the state and error is reported if the state do not match.
 
-#### expires_in
+#### expiresIn
 
 Number. Returned by the server `expires_in` parameter. Number of seconds when
 token expires. If not received by the server it assumes 3600 seconds. When this
 happens the `expiresAssumed` is set on the token info object.
 
-Also available under `expiresIn` key.
-
-#### expires_at
+#### expiresAt
 
 Number. Timestamp when the token expires. It is based on `expiresIn` property.
 If the authorization server did not returned `expiresIn` property it assumes
 3600 seconds (1 hour). Because this time is computed after the response is
 recorded it may be different from what server recorded +- few seconds.
-
-Also available under `expiresAt` key.
 
 #### scope
 
@@ -185,9 +179,9 @@ if it's mixed. The reason is described in [Application wide OAuth configuration]
 
 **interactive** See [Interactive flag](#interactive-flag) description.
 
-**include_granted_scopes** When `true`, it adds `include_granted_scopes` parameter to the authorization URI. This is not standard OAuth2 parameter. Google authorization server uses it to include previously granted OAuth scopes for this OAuth client in the new authorization granted OAuth scopes.
+**includeGrantedScopes** When `true`, it adds `include_granted_scopes` parameter to the authorization URI. This is not standard OAuth2 parameter. Google authorization server uses it to include previously granted OAuth scopes for this OAuth client in the new authorization granted OAuth scopes.
 
-**login_hint** Set to an email value of recognized user. This is not standard OAuth2 parameter. Google authorization server uses it to render consent screen for the user without asking to select the user if the user has more than one identity.
+**loginHint** Set to an email value of recognized user. This is not standard OAuth2 parameter. Google authorization server uses it to render consent screen for the user without asking to select the user if the user has more than one identity.
 
 ```json
 {
@@ -200,8 +194,8 @@ if it's mixed. The reason is described in [Application wide OAuth configuration]
   "scopes": "Array<String>, optional",
   "state": "String, optional",
   "interactive": "Boolean, optional",
-  "include_granted_scopes": "Boolean, optional",
-  "login_hint": "String, optional"
+  "includeGrantedScopes": "Boolean, optional",
+  "loginHint": "String, optional"
 }
 ```
 

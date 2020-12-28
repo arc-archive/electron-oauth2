@@ -1,1 +1,1 @@
-export { OAuth2Handler } from './arc-oauth2-handler';
+export { OAuth2Handler } from './OAuth2Handler.js';

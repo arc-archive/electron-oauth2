@@ -1,5 +1,17 @@
+/* eslint-disable no-empty-function */
 const { assert } = require('chai');
+const sinon = require('sinon');
 const { IdentityProvider } = require('../');
+const {
+  authorize,
+  reportOAuthError,
+  rejectFunction,
+  resolveFunction,
+  createErrorParams,
+  computeExpires,
+  processTokenResponse,
+  processPopupRawData,
+} = require('../lib/provider');
 
 describe('IdentityProvider class - main process', () => {
   const ID = 'test-instance-id';
@@ -13,239 +25,212 @@ describe('IdentityProvider class - main process', () => {
     interactive: false,
   };
 
-  describe('_constructPopupUrl()', () => {
-    let instance = /** @type IdentityProvider */ (null);
-    beforeEach(() => {
-      instance = new IdentityProvider(ID, baseSettings);
-    });
-    const defaultType = 'token';
-
-    it('sets authorization url', () => {
-      const result = instance._constructPopupUrl(baseSettings, defaultType);
-      assert.equal(result.indexOf('http://test.com/auth?'), 0);
+  describe('constructor()', () => {
+    it('sets the settings object', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      assert.deepEqual(auth.oauthConfig, baseSettings);
     });
 
-    it('sets response_type property', () => {
-      const result = instance._constructPopupUrl(baseSettings, defaultType);
-      assert.notEqual(result.indexOf('response_type=token&'), -1);
+    it('sets cacheKey', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      assert.equal(auth.cacheKey, `_oauth_cache_${ID}`);
+    });
+  });
+
+  describe('checkConfig()', () => {
+    // The check sanity is tested with the utils class tests,
+    // this only checks whether the tests are called.
+    it('throws when accessTokenUri is invalid', () => {
+      // eslint-disable-next-line no-script-url
+      const settings = { accessTokenUri: 'javascript://' };
+      const auth = new IdentityProvider(ID, settings);
+      assert.throws(() => {
+        auth.checkConfig();
+      });
+    });
+  });
+
+  describe('[reportOAuthError]()', () => {
+    it('rejects the main promise', async () => {
+      const auth = new IdentityProvider(ID, {});
+      auth[authorize] = () => {};
+      const promise = auth.launchWebAuthFlow();
+      auth[reportOAuthError]('test-message', 'test-code');
+      let err;
+      try {
+        await promise;
+      } catch (e) {
+        err = e;
+      }
+      assert.ok(err, 'error is thrown');
+      assert.equal(err.message, 'test-message', 'message');
+      assert.equal(err.code, 'test-code', 'code is set');
+      assert.typeOf(err.state, 'string', 'state is set');
+      assert.isTrue(err.interactive, 'interactive is set');
     });
 
-    it('sets client_id property', () => {
-      const result = instance._constructPopupUrl(baseSettings, defaultType);
-      assert.notEqual(result.indexOf('client_id=test%20client%20id&'), -1);
+    it('does nothing when no reject function', async () => {
+      const auth = new IdentityProvider(ID, {});
+      auth[resolveFunction] = () => {};
+      auth[reportOAuthError]('test-message', 'test-code');
+      assert.ok(auth[resolveFunction]);
     });
 
-    it('sets redirect_uri property', () => {
-      const result = instance._constructPopupUrl(baseSettings, defaultType);
-      assert.notEqual(result.indexOf('redirect_uri=http%3A%2F%2Ftest.com%2Fredirect'), -1);
+    it('clears the [resolveFunction]', async () => {
+      const auth = new IdentityProvider(ID, {});
+      auth[resolveFunction] = () => {};
+      auth[rejectFunction] = () => {};
+      auth[reportOAuthError]('test-message', 'test-code');
+      assert.isUndefined(auth[resolveFunction]);
     });
 
-    it('sets scopes property', () => {
-      const result = instance._constructPopupUrl(baseSettings, defaultType);
-      assert.notEqual(result.indexOf('scope=one%20two'), -1);
+    it('clears the [rejectFunction]', async () => {
+      const auth = new IdentityProvider(ID, {});
+      auth[resolveFunction] = () => {};
+      auth[rejectFunction] = () => {};
+      auth[reportOAuthError]('test-message', 'test-code');
+      assert.isUndefined(auth[rejectFunction]);
+    });
+  });
+
+  describe('constructPopupUrl()', () => {
+    const baseSettings = {
+      authorizationUri: 'http://test.com/auth',
+      clientId: 'test client id',
+      redirectUri: 'http://test.com/redirect',
+      scopes: ['one', 'two'],
+      includeGrantedScopes: true,
+      loginHint: 'email@domain.com',
+      interactive: false,
+    };
+    const grantType = 'implicit';
+
+    it('uses the authorization url', async () => {
+      const cnf = { ...baseSettings, grantType };
+      const auth = new IdentityProvider(ID, cnf);
+      const result = await auth.constructPopupUrl();
+      assert.isTrue(result.startsWith('http://test.com/auth?'));
     });
 
-    it('sets state property', () => {
-      instance._state = 'test state';
-      const result = instance._constructPopupUrl(baseSettings, defaultType);
-      assert.notEqual(result.indexOf('state=test%20state'), -1);
+    it('sets the response_type property', async () => {
+      const cnf = { ...baseSettings, grantType };
+      const auth = new IdentityProvider(ID, cnf);
+      const result = await auth.constructPopupUrl();
+      assert.isTrue(result.includes('response_type=token&'));
     });
 
-    it('sets Google Oauth properties.', () => {
-      const result = instance._constructPopupUrl(baseSettings, defaultType);
+    it('sets the client_id property', async () => {
+      const cnf = { ...baseSettings, grantType };
+      const auth = new IdentityProvider(ID, cnf);
+      const result = await auth.constructPopupUrl();
+      assert.isTrue(result.includes('client_id=test+client+id&'));
+    });
+
+    it('sets the redirect_uri property', async () => {
+      const cnf = { ...baseSettings, grantType };
+      const auth = new IdentityProvider(ID, cnf);
+      const result = await auth.constructPopupUrl();
+      assert.isTrue(result.includes('redirect_uri=http%3A%2F%2Ftest.com%2Fredirect'));
+    });
+
+    it('sets the scopes property', async () => {
+      const cnf = { ...baseSettings, grantType };
+      const auth = new IdentityProvider(ID, cnf);
+      const result = await auth.constructPopupUrl();
+      assert.notEqual(result.indexOf('scope=one+two'), -1);
+    });
+
+    it('sets state property', async () => {
+      const cnf = { ...baseSettings, grantType, state: 'test state' };
+      const auth = new IdentityProvider(ID, cnf);
+      const result = await auth.constructPopupUrl();
+      assert.notEqual(result.indexOf('state=test+state'), -1);
+    });
+
+    it('sets Google OAuth 2 properties.', async () => {
+      const cnf = { ...baseSettings, grantType };
+      const auth = new IdentityProvider(ID, cnf);
+      const result = await auth.constructPopupUrl();
       assert.notEqual(result.indexOf('include_granted_scopes=true'), -1);
       assert.notEqual(result.indexOf('prompt=none'), -1);
       assert.notEqual(result.indexOf('login_hint=email%40domain.com'), -1);
     });
 
-    it('skips redirect_uri if not set', () => {
-      const instance = new IdentityProvider(ID);
-      const settings = { ...baseSettings };
-      delete settings.redirectUri;
-      const result = instance._constructPopupUrl(settings, defaultType);
+    it('skips the redirect_uri if not set', async () => {
+      const cnf = { ...baseSettings, grantType };
+      cnf.redirectUri = undefined;
+      const auth = new IdentityProvider(ID, cnf);
+      const result = await auth.constructPopupUrl();
       assert.equal(result.indexOf('redirect_uri='), -1);
     });
 
-    it('skips scope if not set', () => {
-      const instance = new IdentityProvider(ID);
-      const settings = { ...baseSettings };
-      settings.scopes = undefined;
-      instance.oauthConfig.scopes = undefined;
-      const result = instance._constructPopupUrl(settings, defaultType);
-      assert.equal(result.indexOf('scope=&'), -1);
+    it('skips the scope if not set', async () => {
+      const cnf = { ...baseSettings, grantType };
+      cnf.scopes = undefined;
+      const auth = new IdentityProvider(ID, cnf);
+      const result = await auth.constructPopupUrl();
+      assert.equal(result.indexOf('scope='), -1);
     });
 
-    it('skips include_granted_scopes if not set', () => {
-      const instance = new IdentityProvider(ID);
-      const settings = { ...baseSettings };
-      settings.includeGrantedScopes = undefined;
-      const result = instance._constructPopupUrl(settings, defaultType);
+    it('skips the include_granted_scopes if not set', async () => {
+      const cnf = { ...baseSettings, grantType };
+      cnf.includeGrantedScopes = undefined;
+      const auth = new IdentityProvider(ID, cnf);
+      const result = await auth.constructPopupUrl();
       assert.equal(result.indexOf('include_granted_scopes='), -1);
     });
 
-    it('skips prompt if not set', () => {
-      const instance = new IdentityProvider(ID);
-      const settings = { ...baseSettings };
-      settings.interactive = undefined;
-      const result = instance._constructPopupUrl(settings, defaultType);
+    it('skips the prompt if not set', async () => {
+      const cnf = { ...baseSettings, grantType };
+      cnf.interactive = undefined;
+      const auth = new IdentityProvider(ID, cnf);
+      const result = await auth.constructPopupUrl();
       assert.equal(result.indexOf('prompt='), -1);
     });
 
-    it('skips login_hint if not set', () => {
-      const instance = new IdentityProvider(ID);
-      const settings = { ...baseSettings };
-      settings.loginHint = undefined;
-      const result = instance._constructPopupUrl(settings, defaultType);
+    it('skips the login_hint if not set', async () => {
+      const cnf = { ...baseSettings, grantType };
+      cnf.loginHint = undefined;
+      const auth = new IdentityProvider(ID, cnf);
+      const result = await auth.constructPopupUrl();
       assert.equal(result.indexOf('login_hint='), -1);
     });
 
-    it('does not inserts "?" when auth url already contains it', () => {
-      const settings = Object.assign({}, baseSettings);
-      settings.authorizationUri = 'http://test.com/auth?custom=value';
-      const result = instance._constructPopupUrl(settings, defaultType);
+    it('do not inserts "?" when auth url already contains it', async () => {
+      const cnf = { ...baseSettings, grantType };
+      cnf.authorizationUri = 'http://test.com/auth?custom=value';
+      const auth = new IdentityProvider(ID, cnf);
+      const result = await auth.constructPopupUrl();
       assert.equal(result.indexOf('http://test.com/auth?custom=value&response_type'), 0);
     });
-  });
 
-  describe('randomString()', () => {
-    let instance = /** @type IdentityProvider */ (null);
-    beforeEach(() => {
-      instance = new IdentityProvider(ID, baseSettings);
-    });
-
-    it('Generates string of 6', () => {
-      const result = instance.randomString();
-      assert.typeOf(result, 'string');
-      assert.lengthOf(result, 6);
-    });
-  });
-
-  describe('_computeScope()', () => {
-    let instance = /** @type IdentityProvider */ (null);
-    beforeEach(() => {
-      instance = new IdentityProvider(ID, baseSettings);
+    it('adds code_challenge for PKCE extension', async () => {
+      const cnf = { ...baseSettings, grantType: 'authorization_code', pkce: true };
+      const auth = new IdentityProvider(ID, cnf);
+      const result = await auth.constructPopupUrl();
+      const url = new URL(result);
+      const challenge = url.searchParams.get('code_challenge');
+      assert.typeOf(challenge, 'string', 'the challenge is set');
+      const method = url.searchParams.get('code_challenge_method');
+      assert.equal(method, 'S256', 'the method is set');
     });
 
-    it('Returns empty string for no argument', () => {
-      const result = instance._computeScope(undefined);
-      assert.strictEqual(result, '');
+    it('sets codeVerifier', async () => {
+      const cnf = { ...baseSettings, grantType: 'authorization_code', pkce: true };
+      const auth = new IdentityProvider(ID, cnf);
+      await auth.constructPopupUrl();
+      const verifier = auth.codeVerifier;
+      assert.typeOf(verifier, 'string', 'the verifier is set');
+      assert.isAbove(verifier.length, 42); // min length 43 characters
+      assert.isBelow(verifier.length, 129); // max length 128 characters
     });
 
-    it('Returns value for single scope', () => {
-      const result = instance._computeScope(['one']);
-      assert.strictEqual(result, 'one');
-    });
-
-    it('Returns value for multiple scopes', () => {
-      const result = instance._computeScope(['one', 'two']);
-      assert.strictEqual(result, 'one%20two');
-    });
-  });
-
-  describe('_camel()', () => {
-    let instance = /** @type IdentityProvider */ (null);
-    beforeEach(() => {
-      instance = new IdentityProvider(ID, baseSettings);
-    });
-    it('returns undefined if not changed', () => {
-      const result = instance._camel('noop');
-      assert.isUndefined(result);
-    });
-    it('returns camel cased with "-"', () => {
-      const result = instance._camel('property-name-item');
-      assert.equal(result, 'propertyNameItem');
-    });
-    it('returns camel cased with "_"', () => {
-      const result = instance._camel('property_name_item');
-      assert.equal(result, 'propertyNameItem');
-    });
-  });
-
-  describe('Custom OAuth data', () => {
-    let instance = /** @type IdentityProvider */ (null);
-    const params = {
-      type: 'custom_grant',
-      clientId: 'test',
-      clientSecret: 'test',
-      authorizationUri: 'https://auth.domain.com',
-      username: 'user-test',
-      password: 'pass-test',
-      customData: {
-        auth: {
-          parameters: [{
-            name: 'aqp1',
-            value: 'AqQv1',
-          }],
-        },
-        token: {
-          parameters: [{
-            name: 'tqp1',
-            value: 'TqQv1',
-          }],
-          headers: [{
-            name: 'th1',
-            value: 'thv1',
-          }],
-          body: [{
-            name: 'tb1',
-            value: 'tbv1',
-          }],
-        },
-      },
-    };
-    beforeEach(() => {
-      instance = new IdentityProvider(ID, baseSettings);
-      instance._state = 'test-state';
-    });
-
-    describe('_applyCustomSettingsQuery()', () => {
-      it('returns a string', () => {
-        const result = instance._applyCustomSettingsQuery('', params.customData.auth);
-        assert.typeOf(result, 'string');
-      });
-      it('returns the same string when no settings', () => {
-        const result = instance._applyCustomSettingsQuery('', {});
-        assert.equal(result, '');
-      });
-      it('returns params in query string.', () => {
-        const result = instance._applyCustomSettingsQuery('', params.customData.auth);
-        assert.equal(result, '?aqp1=AqQv1');
-      });
-    });
-
-    describe('_constructPopupUrl()', () => {
-      it('applies params to the url for implicit type', () => {
-        instance = new IdentityProvider(ID);
-        instance._state = 'test-state';
-        const result = instance._constructPopupUrl(params, 'token');
-        let compare = 'https://auth.domain.com?response_type=token&client_id=';
-        compare += 'test&state=test-state&aqp1=AqQv1';
-        assert.equal(result, compare);
-      });
-
-      it('applies params to the url for authorization_code type', () => {
-        instance = new IdentityProvider(ID);
-        instance._state = 'test-state';
-        const result = instance._constructPopupUrl(params, 'code');
-        let compare = 'https://auth.domain.com?response_type=code&client_id=';
-        compare += 'test&state=test-state&aqp1=AqQv1';
-        assert.equal(result, compare);
-      });
-    });
-
-    describe('_applyCustomSettingsBody()', () => {
-      it('returns a string', () => {
-        const result = instance._applyCustomSettingsBody('', params.customData);
-        assert.typeOf(result, 'string');
-      });
-      it('returns the same string when no settings', () => {
-        const result = instance._applyCustomSettingsBody('', {});
-        assert.equal(result, '');
-      });
-      it('returns params in query string.', () => {
-        const result = instance._applyCustomSettingsBody('', params.customData);
-        assert.equal(result, '&tb1=tbv1');
-      });
+    it('sets client_secret and client_id', async () => {
+      const cnf = { ...baseSettings, clientSecret: 'secret', grantType };
+      const auth = new IdentityProvider(ID, cnf);
+      const result = await auth.constructPopupUrl();
+      assert.isTrue(result.includes('client_secret=secret'));
+      assert.isTrue(result.includes('client_id=test+client+id'));
     });
   });
 
@@ -326,12 +311,120 @@ describe('IdentityProvider class - main process', () => {
       const result = await instance.restoreTokenInfo();
       assert.isUndefined(result);
     });
+  });
 
-    it('clears tokenInfo', () => {
-      // @ts-ignore
-      instance.tokenInfo = 'test';
-      instance.clearCache();
-      assert.isUndefined(instance.tokenInfo);
+  describe('[createErrorParams]()', () => {
+    const baseSettings = Object.freeze({
+      clientId: 'test client id',
+    });
+
+    let client = /** @type IdentityProvider */ (null);
+    beforeEach(() => {
+      client = new IdentityProvider(ID, baseSettings);
+    });
+
+    it('returns passed code', () => {
+      const result = client[createErrorParams]('my-code');
+      assert.equal(result[1], 'my-code');
+    });
+
+    it('returns the default message', () => {
+      const result = client[createErrorParams]('my-code');
+      assert.equal(result[0], 'Unknown error');
+    });
+
+    it('returns passed message', () => {
+      const result = client[createErrorParams]('my-code', 'a message');
+      assert.equal(result[0], 'a message');
+    });
+
+    [
+      ['interaction_required', 'The request requires user interaction.'],
+      ['invalid_request', 'The request is missing a required parameter.'],
+      ['invalid_client', 'Client authentication failed.'],
+      ['invalid_grant', 'The provided authorization grant or refresh token is invalid, expired, revoked, does not match the redirection URI used in the authorization request, or was issued to another client.'],
+      ['unauthorized_client', 'The authenticated client is not authorized to use this authorization grant type.'],
+      ['unsupported_grant_type', 'The authorization grant type is not supported by the authorization server.'],
+      ['invalid_scope', 'The requested scope is invalid, unknown, malformed, or exceeds the scope granted by the resource owner.'],
+    ].forEach(([code, message]) => {
+      it(`returns message for the ${code} code`, () => {
+        const result = client[createErrorParams](code);
+        assert.equal(result[0], message);
+      });
+    });
+  });
+
+  describe('[computeExpires]()', () => {
+    const baseSettings = Object.freeze({
+      clientId: 'test client id',
+    });
+
+    const baseToken = Object.freeze({
+      accessToken: 'abc',
+      tokenType: 'bearer',
+      expiresIn: 12,
+      expiresAt: undefined,
+      expiresAssumed: false,
+      state: '123',
+    });
+
+    let client = /** @type IdentityProvider */ (null);
+    beforeEach(() => {
+      client = new IdentityProvider(ID, baseSettings);
+    });
+
+    it('returns a copy', () => {
+      const result = client[computeExpires](baseToken);
+      assert.isFalse(result === baseToken);
+    });
+
+    it('sets expiresAt', () => {
+      const result = client[computeExpires](baseToken);
+      assert.typeOf(result.expiresAt, 'number');
+    });
+
+    it('adds default expiresIn', () => {
+      const info = { ...baseToken };
+      delete info.expiresIn;
+      const result = client[computeExpires](info);
+      assert.equal(result.expiresIn, 3600);
+    });
+
+    it('fixes NaN expiresIn', () => {
+      const info = { ...baseToken };
+      info.expiresIn = Number('nan');
+      const result = client[computeExpires](info);
+      assert.equal(result.expiresIn, 3600);
+    });
+  });
+
+  describe('[processPopupRawData]()', () => {
+    const baseSettings = Object.freeze({
+      clientId: 'test client id',
+    });
+
+    it('calls [processTokenResponse] for hash part', () => {
+      const client = new IdentityProvider(ID, baseSettings);
+      client[rejectFunction] = () => {};
+      const spy = sinon.spy(client, processTokenResponse);
+      client[processPopupRawData]('https://api.com#access_token=b');
+      assert.isTrue(spy.called);
+    });
+
+    it('calls [processTokenResponse] for search part', () => {
+      const client = new IdentityProvider(ID, baseSettings);
+      client[rejectFunction] = () => {};
+      const spy = sinon.spy(client, processTokenResponse);
+      client[processPopupRawData]('https://api.com?code=b');
+      assert.isTrue(spy.called);
+    });
+
+    it('ignores when no parameters', () => {
+      const client = new IdentityProvider(ID, baseSettings);
+      client[rejectFunction] = () => {};
+      const spy = sinon.spy(client, processTokenResponse);
+      client[processPopupRawData]('');
+      assert.isFalse(spy.called);
     });
   });
 });

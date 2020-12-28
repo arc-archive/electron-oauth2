@@ -15,6 +15,7 @@ module.exports = {
     es6: true,
   },
   plugins: ['no-only-tests', 'babel', 'import'],
+  ignorePatterns: ['**/*.d.ts'],
   rules: {
     'arrow-parens': [
       'error',
@@ -76,7 +77,7 @@ module.exports = {
     'no-return-await': 'error',
     'no-template-curly-in-string': 'error',
     'generator-star-spacing': 'off',
-    'indent': ['error', 2],
+    'indent': ['error', 2, { 'SwitchCase': 1 }],
   },
   overrides: [
     {

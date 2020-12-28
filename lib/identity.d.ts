@@ -1,5 +1,5 @@
 import { BaseOAuth2Authorization, OAuth2Authorization } from '@advanced-rest-client/arc-types/src/authorization/Authorization';
-import { TokenInfo, TokenRemoveOptions } from '@advanced-rest-client/arc-types/src/oauth2/OAuth2';
+import { TokenInfo, TokenRemoveOptions } from '@advanced-rest-client/arc-types/src/authorization/Authorization';
 import { IdentityProvider } from './provider';
 
 export declare const tokenRequestHandler: unique symbol;

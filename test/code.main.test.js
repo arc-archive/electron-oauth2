@@ -1,7 +1,7 @@
-// jscs:disable requireCamelCaseOrUpperCaseIdentifiers
-const assert = require('chai').assert;
+const { assert } = require('chai');
 const { IdentityProvider } = require('../');
 const srv = require('./code-server');
+const { aTimeout } = require('./TestHelpers');
 
 describe('Code requests - main process', () => {
   const ID = 'test-instance-id-code-request';
@@ -34,7 +34,7 @@ describe('Code requests - main process', () => {
       instance = new IdentityProvider(ID, params);
     });
 
-    it('Returns promise resolved to token', async () => {
+    it('resolves to the token info', async () => {
       const tokenInfo = await instance.launchWebAuthFlow();
       assert.typeOf(tokenInfo, 'object');
       assert.equal(tokenInfo.accessToken, expectedToken);
@@ -62,7 +62,7 @@ describe('Code requests - main process', () => {
       }
       assert.equal(error.code, 'test-error');
       assert.equal(error.message, 'test-error-message');
-      assert.isUndefined(error.interactive);
+      assert.isTrue(error.interactive);
       assert.typeOf(error.state, 'string');
     });
 
@@ -70,6 +70,7 @@ describe('Code requests - main process', () => {
       const result = instance.launchWebAuthFlow({
         interactive: false,
       });
+      await aTimeout(0);
       assert.isFalse(instance.currentOAuthWindow.isVisible());
       const tokenInfo = await result;
       assert.typeOf(tokenInfo, 'object');
@@ -98,7 +99,7 @@ describe('Code requests - main process', () => {
       assert.typeOf(error.state, 'string');
     });
 
-    it('Store token in cache store', async () => {
+    it('stores the token in the cache store', async () => {
       const info = await instance.launchWebAuthFlow();
       const restored = await instance.restoreTokenInfo();
       assert.typeOf(restored, 'object');
@@ -179,7 +180,7 @@ describe('Code requests - main process', () => {
         },
       });
       // @ts-ignore
-      assert.equal(info.custom_test_url, true);
+      assert.equal(info.customTestUrl, true);
     });
 
     it('Sends custom headers', async () => {
@@ -199,7 +200,7 @@ describe('Code requests - main process', () => {
       });
       assert.typeOf(info, 'object');
       // @ts-ignore
-      assert.equal(info.custom_test_headers, true);
+      assert.equal(info.customTestHeaders, true);
     });
 
     it('Sends custom body parameters', async () => {
@@ -214,7 +215,7 @@ describe('Code requests - main process', () => {
         },
       });
       // @ts-ignore
-      assert.equal(info.custom_test_body, true);
+      assert.equal(info.customTestBody, true);
     });
   });
 });
