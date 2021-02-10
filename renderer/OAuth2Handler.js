@@ -81,6 +81,12 @@ export class OAuth2Handler {
       customData: detail.customData,
       includeGrantedScopes: detail.includeGrantedScopes,
       loginHint: detail.loginHint,
+      deliveryMethod: detail.deliveryMethod,
+      deliveryName: detail.deliveryName,
+      grantType: detail.grantType,
+      pkce: detail.pkce,
+      tokenType: detail.tokenType,
+      accessToken: detail.accessToken,
     });
     return opts;
   }
