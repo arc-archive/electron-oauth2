@@ -4,7 +4,7 @@ const srv = require('./client-credentials-server');
 
 /** @typedef {import('@advanced-rest-client/arc-types').Authorization.OAuth2Authorization} OAuth2Authorization */
 
-describe.only('Client credentials requests - main process', () => {
+describe('Client credentials requests - main process', () => {
   const ID = 'test-instance-id-cc-request';
   const clientId = 'test-client-id-cc-request';
   const clientSecret = 'test-client-secret-cc-request';
