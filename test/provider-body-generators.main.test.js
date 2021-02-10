@@ -64,6 +64,7 @@ describe('Request body generators - main process', () => {
       clientId: 'test client id',
       scopes: ['scope1', 'scope2'],
       clientSecret: 'client secret',
+      deliveryMethod: undefined,
     });
 
     it('has the grant_type', () => {
@@ -104,6 +105,51 @@ describe('Request body generators - main process', () => {
       const auth = new IdentityProvider(ID, config);
       const result = auth.getClientCredentialsBody();
       assert.isFalse(result.includes('scope='));
+    });
+
+    it('ignores the client_id when header location', () => {
+      const config = { ...baseSettings };
+      config.deliveryMethod = 'header';
+      const auth = new IdentityProvider(ID, config);
+      const result = auth.getClientCredentialsBody();
+      assert.notInclude(result, 'client_id=');
+    });
+
+    it('ignores the client_secret when header location', () => {
+      const config = { ...baseSettings };
+      config.deliveryMethod = 'header';
+      const auth = new IdentityProvider(ID, config);
+      const result = auth.getClientCredentialsBody();
+      assert.notInclude(result, 'client_secret=');
+    });
+  });
+
+  describe('getClientCredentialsHeader()', () => {
+    const baseSettings = Object.freeze({
+      clientId: 'test client id',
+      clientSecret: 'client secret',
+    });
+
+    it('encodes the parameters', () => {
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getClientCredentialsHeader(baseSettings);
+      assert.equal(result, 'Basic dGVzdCBjbGllbnQgaWQ6Y2xpZW50IHNlY3JldA==');
+    });
+
+    it('uses the default clientId', () => {
+      const init = { ...baseSettings };
+      delete init.clientId;
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getClientCredentialsHeader(init);
+      assert.equal(result, 'Basic OmNsaWVudCBzZWNyZXQ=');
+    });
+
+    it('uses the default clientSecret', () => {
+      const init = { ...baseSettings };
+      delete init.clientSecret;
+      const auth = new IdentityProvider(ID, baseSettings);
+      const result = auth.getClientCredentialsHeader(init);
+      assert.equal(result, 'Basic dGVzdCBjbGllbnQgaWQ6');
     });
   });
 

@@ -11,22 +11,10 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-import { BrowserWindow, session, net } from 'electron';
 import { URLSearchParams } from 'url';
 import Store from 'electron-store';
-import i18n from 'i18n';
-import { AuthorizationError, CodeError } from './AuthorizationError.js';
-import { applyCustomSettingsQuery, applyCustomSettingsBody, applyCustomSettingsHeaders } from './CustomParameters.js';
-import { sanityCheck, randomString, camel, generateCodeChallenge } from './Utils.js';
 import { OAuth2Authorization, TokenInfo } from '@advanced-rest-client/arc-types/src/authorization/Authorization';
 import { FetchResponse } from '../types.js';
-
-/** @typedef {import('@advanced-rest-client/arc-types').Authorization.TokenInfo} TokenInfo */
-/** @typedef {import('@advanced-rest-client/arc-types').Authorization.OAuth2Authorization} OAuth2Authorization */
-/** @typedef {import('@advanced-rest-client/arc-types').Authorization.OAuth2CustomData} OAuth2CustomData */
-/** @typedef {import('@advanced-rest-client/arc-types').Authorization.OAuth2AuthorizationRequestCustomData} OAuth2AuthorizationRequestCustomData */
-/** @typedef {import('./provider').CodeResponseObject} CodeResponseObject */
-/** @typedef {import('../types').FetchResponse} FetchResponse */
 
 export declare const authorize: unique symbol;
 export declare const reportOAuthError: unique symbol;
@@ -335,6 +323,15 @@ export class IdentityProvider {
    * @return Message body as defined in OAuth2 spec.
    */
   getClientCredentialsBody(): string;
+
+  /**
+   * Builds the authorization header for Client Credentials grant type.
+   * According to the spec the authorization header for this grant type
+   * is the Base64 of `clientId` + `:` + `clientSecret`.
+   * 
+   * @param settings The OAuth 2 settings to use
+   */
+  getClientCredentialsHeader(settings: OAuth2Authorization): string;
 
   /**
    * Requests a token for `client_credentials` request type.
