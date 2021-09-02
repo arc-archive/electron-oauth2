@@ -3,7 +3,7 @@ const https = require('https');
 const http = require('http');
 const { startServer } = require('./OauthServer.js');
 const { OidcProvider } = require('../index.js');
-const { resolveFunction, handleTokenInfo, rejectFunction, stateValue } = require('../lib/IdentityProvider.js');
+const { resolveFunction, handleTokenInfo, rejectFunction, stateValue, settingsValue } = require('../lib/IdentityProvider.js');
 
 /** @typedef {import('@advanced-rest-client/arc-types').Authorization.OidcTokenInfo} OidcTokenInfo */
 
@@ -123,32 +123,32 @@ describe('OpenID Connect', () => {
         assert.deepEqual(id.scope, ['a', 'b'], 'id token has scope');
       });
 
-      // it('uses response type mapped from grant type', () => {
-      //   const cp = { ...instance.settings };
-      //   delete cp.responseType;
-      //   cp.grantType = 'authorization_code';
-      //   instance[settingsValue] = cp;
-      //   const result = instance.prepareTokens(params, 123);
+      it('uses response type mapped from grant type', () => {
+        const cp = { ...instance[settingsValue] };
+        delete cp.responseType;
+        cp.grantType = 'authorization_code';
+        instance[settingsValue] = cp;
+        const result = instance.prepareTokens(params, 123);
 
-      //   assert.lengthOf(result, 1, 'has single token');
-      //   const [code] = result;
-      //   assert.equal(code.state, 'state-test', 'code token has state');
-      //   assert.equal(code.expiresIn, 1234, 'code token has expiresIn');
-      //   assert.equal(code.tokenType, 'Bearer', 'code token has tokenType');
-      //   assert.equal(code.time, 123, 'code token has time');
-      //   assert.equal(code.responseType, 'code', 'code token has responseType');
-      //   assert.equal(code.code, 'code-test', 'code token has code');
-      //   assert.deepEqual(code.scope, ['a', 'c'], 'code token has scope');
-      // });
+        assert.lengthOf(result, 1, 'has single token');
+        const [code] = result;
+        assert.equal(code.state, 'state-test', 'code token has state');
+        assert.equal(code.expiresIn, 1234, 'code token has expiresIn');
+        assert.equal(code.tokenType, 'Bearer', 'code token has tokenType');
+        assert.equal(code.time, 123, 'code token has time');
+        assert.equal(code.responseType, 'code', 'code token has responseType');
+        assert.equal(code.code, 'code-test', 'code token has code');
+        assert.deepEqual(code.scope, ['a', 'c'], 'code token has scope');
+      });
 
-      // it('returns null when no valid settings', () => {
-      //   const cp = { ...instance.settings };
-      //   delete cp.responseType;
-      //   instance[settingsValue] = cp;
-      //   const result = instance.prepareTokens(params, 123);
+      it('returns null when no valid settings', () => {
+        const cp = { ...instance[settingsValue] };
+        delete cp.responseType;
+        instance[settingsValue] = cp;
+        const result = instance.prepareTokens(params, 123);
 
-      //   assert.isNull(result);
-      // });
+        assert.isNull(result);
+      });
     });
 
     describe('[handleTokenInfo]()', () => {
@@ -348,67 +348,6 @@ describe('OpenID Connect', () => {
         assert.typeOf(token.accessToken, 'string', 'has the accessToken');
         assert.typeOf(token.refreshToken, 'string', 'has the refreshToken');
         assert.typeOf(token.idToken, 'string', 'has the idToken');
-      });
-    });
-
-    describe('tokens caching', () => {
-      /** @type any */
-      let info;
-
-      before(async () => {
-        info = await discovery();
-      });
-
-      /** @type {OidcProvider} */
-      let instance;
-
-      beforeEach(async () => {
-        instance = new OidcProvider(ID, {
-          grantType: 'authorization_code',
-          responseType: 'code',
-          authorizationUri: info.authorization_endpoint,
-          accessTokenUri: info.token_endpoint,
-          scopes: info.response_types_supported,
-          redirectUri: oauth2redirect,
-          clientId: 'test-cid',
-          clientSecret: 'test-cs',
-          interactive: false,
-          state: 'test-state',
-        });
-        instance.clearCache();
-      });
-
-      it('stores the tokens in the cache', async () => {
-        const tokens = await instance.getAuthTokens();
-        const restored = await instance.restoreTokensInfo();
-        assert.deepEqual(restored, tokens, 'has the tokens in the cache');
-      });
-
-      it('reuses cached tokens', async () => {
-        const tokens = await instance.getAuthTokens();
-        const [token] = tokens;
-        token.responseType = 'xyz-test';
-        await instance.storeTokens(tokens);
-        const restored = await instance.getAuthTokens();
-        assert.equal(restored[0].responseType, 'xyz-test');
-      });
-
-      it('updates the state', async () => {
-        await instance.getAuthTokens();
-        const restored = await instance.getAuthTokens({
-          state: 'other',
-        });
-        assert.equal(restored[0].state, 'other');
-      });
-
-      it('redo the oauth flow when expired', async () => {
-        const tokens = await instance.getAuthTokens();
-        const token = /** @type OidcTokenInfo */ (tokens[0]);
-        token.time = Date.now() - 60 * 60 * 24 * 1000;
-        token.accessToken = 'updated';
-        await instance.storeTokens(tokens);
-        const renewed = await instance.getAuthTokens();
-        assert.notEqual(/** @type OidcTokenInfo */ (renewed[0]).accessToken, 'updated');
       });
     });
   });
