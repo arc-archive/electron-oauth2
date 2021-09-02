@@ -1,10 +1,12 @@
 import { BaseOAuth2Authorization, OAuth2Authorization } from '@advanced-rest-client/arc-types/src/authorization/Authorization';
 import { TokenInfo, TokenRemoveOptions } from '@advanced-rest-client/arc-types/src/authorization/Authorization';
-import { IdentityProvider } from './provider';
+import { IdentityProvider } from './IdentityProvider';
 
 export declare const tokenRequestHandler: unique symbol;
 export declare const launchWebFlowHandler: unique symbol;
 export declare const removeTokenHandler: unique symbol;
+export declare const oidcTokenHandler: unique symbol;
+export declare const oidcRemoveTokenHandler: unique symbol;
 
 /**
  * Class that manages OAuth2 identities.

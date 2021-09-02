@@ -1,7 +1,7 @@
 /* eslint-disable no-empty-function */
 const { assert } = require('chai');
 const sinon = require('sinon');
-const { IdentityProvider } = require('../');
+const { IdentityProvider } = require('../index.js');
 const {
   authorize,
   reportOAuthError,
@@ -9,9 +9,8 @@ const {
   resolveFunction,
   createErrorParams,
   computeExpires,
-  processTokenResponse,
   processPopupRawData,
-} = require('../lib/provider');
+} = require('../lib/IdentityProvider.js');
 
 describe('IdentityProvider class - main process', () => {
   const ID = 'test-instance-id';
@@ -225,12 +224,18 @@ describe('IdentityProvider class - main process', () => {
       assert.isBelow(verifier.length, 129); // max length 128 characters
     });
 
-    it('sets client_secret and client_id', async () => {
+    it('sets the client_id', async () => {
       const cnf = { ...baseSettings, clientSecret: 'secret', grantType };
       const auth = new IdentityProvider(ID, cnf);
       const result = await auth.constructPopupUrl();
-      assert.isTrue(result.includes('client_secret=secret'));
       assert.isTrue(result.includes('client_id=test+client+id'));
+    });
+
+    it('does not set client_secret', async () => {
+      const cnf = { ...baseSettings, clientSecret: 'secret', grantType };
+      const auth = new IdentityProvider(ID, cnf);
+      const result = await auth.constructPopupUrl();
+      assert.isFalse(result.includes('client_secret=secret'));
     });
   });
 
@@ -403,18 +408,18 @@ describe('IdentityProvider class - main process', () => {
       clientId: 'test client id',
     });
 
-    it('calls [processTokenResponse] for hash part', () => {
+    it('calls processTokenResponse for hash part', () => {
       const client = new IdentityProvider(ID, baseSettings);
       client[rejectFunction] = () => {};
-      const spy = sinon.spy(client, processTokenResponse);
+      const spy = sinon.spy(client, 'processTokenResponse');
       client[processPopupRawData]('https://api.com#access_token=b');
       assert.isTrue(spy.called);
     });
 
-    it('calls [processTokenResponse] for search part', () => {
+    it('calls processTokenResponse for search part', () => {
       const client = new IdentityProvider(ID, baseSettings);
       client[rejectFunction] = () => {};
-      const spy = sinon.spy(client, processTokenResponse);
+      const spy = sinon.spy(client, 'processTokenResponse');
       client[processPopupRawData]('https://api.com?code=b');
       assert.isTrue(spy.called);
     });
@@ -422,7 +427,7 @@ describe('IdentityProvider class - main process', () => {
     it('ignores when no parameters', () => {
       const client = new IdentityProvider(ID, baseSettings);
       client[rejectFunction] = () => {};
-      const spy = sinon.spy(client, processTokenResponse);
+      const spy = sinon.spy(client, 'processTokenResponse');
       client[processPopupRawData]('');
       assert.isFalse(spy.called);
     });

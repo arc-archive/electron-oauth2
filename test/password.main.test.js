@@ -1,7 +1,7 @@
 // jscs:disable requireCamelCaseOrUpperCaseIdentifiers
 const { assert } = require('chai');
-const { IdentityProvider } = require('../');
-const srv = require('./password-server');
+const { IdentityProvider } = require('../index.js');
+const srv = require('./password-server.js');
 
 describe('Password requests - main process', () => {
   const ID = 'test-instance-id-password-request';

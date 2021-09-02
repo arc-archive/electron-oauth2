@@ -6,10 +6,15 @@ import { AuthorizationEventTypes } from '@advanced-rest-client/arc-events';
 /** @typedef {import('@advanced-rest-client/arc-types').Authorization.TokenRemoveOptions} TokenRemoveOptions */
 /** @typedef {import('@advanced-rest-client/arc-events').OAuth2AuthorizeEvent} OAuth2AuthorizeEvent */
 /** @typedef {import('@advanced-rest-client/arc-events').OAuth2RemoveTokenEvent} OAuth2RemoveTokenEvent */
+/** @typedef {import('@advanced-rest-client/arc-types').Authorization.OidcAuthorization} OidcAuthorization */
+/** @typedef {import('@advanced-rest-client/arc-types').Authorization.OidcTokenInfo} OidcTokenInfo */
+/** @typedef {import('@advanced-rest-client/arc-types').Authorization.OidcTokenError} OidcTokenError */
 
 export const authorizeHandler = Symbol('authorizeHandler');
 export const removeTokenHandler = Symbol('removeTokenHandler');
 export const prepareEventDetail = Symbol('prepareEventDetail');
+export const authorizeOidcHandler = Symbol('authorizeOidcHandler');
+export const removeOidcTokenHandler = Symbol('removeOidcTokenHandler');
 
 /**
  * Class responsible for handing OAuth2 related events and to pass them to
@@ -22,6 +27,8 @@ export class OAuth2Handler {
   constructor() {
     this[authorizeHandler] = this[authorizeHandler].bind(this);
     this[removeTokenHandler] = this[removeTokenHandler].bind(this);
+    this[authorizeOidcHandler] = this[authorizeOidcHandler].bind(this);
+    this[removeOidcTokenHandler] = this[removeOidcTokenHandler].bind(this);
   }
 
   /**
@@ -31,6 +38,9 @@ export class OAuth2Handler {
     const types = AuthorizationEventTypes.OAuth2;
     document.body.addEventListener(types.authorize, this[authorizeHandler]);
     document.body.addEventListener(types.removeToken, this[removeTokenHandler]);
+    const oidc = AuthorizationEventTypes.Oidc;
+    document.body.addEventListener(oidc.authorize, this[authorizeOidcHandler]);
+    document.body.addEventListener(oidc.removeTokens, this[removeOidcTokenHandler]);
   }
 
   /**
@@ -40,6 +50,9 @@ export class OAuth2Handler {
     const types = AuthorizationEventTypes.OAuth2;
     document.body.removeEventListener(types.authorize, this[authorizeHandler]);
     document.body.removeEventListener(types.removeToken, this[removeTokenHandler]);
+    const oidc = AuthorizationEventTypes.Oidc;
+    document.body.removeEventListener(oidc.authorize, this[authorizeOidcHandler]);
+    document.body.removeEventListener(oidc.removeTokens, this[removeOidcTokenHandler]);
   }
 
   /**
@@ -49,6 +62,15 @@ export class OAuth2Handler {
    */
   async requestToken(opts) {
     return ipcRenderer.invoke('oauth2-launchwebflow', opts);
+  }
+
+  /**
+   * Requests for a token from the main process.
+   * @param {OidcAuthorization} opts Auth options.
+   * @return {Promise<(OidcTokenInfo|OidcTokenError)[]>} The token info object.
+   */
+  async requestOidcToken(opts) {
+    return ipcRenderer.invoke('oidc-gettoken', opts);
   }
 
   /**
@@ -102,6 +124,16 @@ export class OAuth2Handler {
   }
 
   /**
+   * Removes token from the cache.
+   *
+   * @param {TokenRemoveOptions=} opts
+   * @return {Promise<void>}
+   */
+  async deleteOidcTokens(opts) {
+    return ipcRenderer.invoke('oidc-removetokens', opts);
+  }
+
+  /**
    * Generates `state` parameter for the OAuth2 call.
    *
    * @return {String} Generated state string.
@@ -133,6 +165,22 @@ export class OAuth2Handler {
   }
 
   /**
+   * Handler for the `oauth2-launchwebflow` custom event.
+   * This sets a promise on the `detail.result` object instead of
+   * dispatching event with the token.
+   *
+   * @param {CustomEvent} e
+   */
+  [authorizeOidcHandler](e) {
+    if (e.defaultPrevented) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    e.detail.result = this.requestOidcToken(e.detail);
+  }
+
+  /**
    * Handler for the `oauth2-removetoken` custom event dispatched to
    * clear cached token info.
    *
@@ -157,5 +205,24 @@ export class OAuth2Handler {
       };
     }
     e.detail.result = this.deleteToken(opts);
+  }
+
+  /**
+   * @param {CustomEvent} e
+   */
+  [removeOidcTokenHandler](e) {
+    if (e.defaultPrevented) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    let opts;
+    if (e.detail && e.detail.clientId && e.detail.authorizationUri) {
+      opts = {
+        clientId: e.detail.clientId,
+        authorizationUri: e.detail.authorizationUri,
+      };
+    }
+    e.detail.result = this.deleteOidcTokens(opts);
   }
 }

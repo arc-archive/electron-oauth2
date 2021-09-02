@@ -24,22 +24,25 @@ export declare const observeAuthWindowNavigation: unique symbol;
 export declare const sessionErrorListener: unique symbol;
 export declare const sessionCompletedListener: unique symbol;
 export declare const processPopupRawData: unique symbol;
-export declare const processTokenResponse: unique symbol;
-export declare const createTokenResponseError: unique symbol;
 export declare const createErrorParams: unique symbol;
 export declare const handleTokenInfo: unique symbol;
 export declare const tokenResponse: unique symbol;
-export declare const tokenInfoFromParams: unique symbol;
 export declare const computeTokenInfoScopes: unique symbol;
 export declare const computeExpires: unique symbol;
-export declare const processCodeResponse: unique symbol;
 export declare const handleTokenCodeError: unique symbol;
 export declare const authorizeClientCredentials: unique symbol;
 export declare const authorizePassword: unique symbol;
 export declare const authorizeCustomGrant: unique symbol;
+export declare const authorizeDeviceCode: unique symbol;
+export declare const authorizeJwt: unique symbol;
 export declare const startSession: unique symbol;
 export declare const resolveFunction: unique symbol;
 export declare const rejectFunction: unique symbol;
+export declare const tokenInfoFromParams: unique symbol;
+export declare const stateValue: unique symbol;
+export declare const settingsValue: unique symbol;
+
+export declare const grantResponseMapping: Record<string, string>;
 
 /**
  * A class to perform OAuth2 flow with given configuration.
@@ -55,7 +58,7 @@ export class IdentityProvider {
   /**
    * The current state parameter
    */
-  #state: string;
+  [stateValue]: string;
 
   /**
    * The main resolve function
@@ -70,7 +73,7 @@ export class IdentityProvider {
   /**
    * The final OAuth 2 settings to use.
    */
-  #settings: OAuth2Authorization;
+  [settingsValue]: OAuth2Authorization;
 
   /**
    * Instance of the store library to cache token data.
@@ -192,6 +195,11 @@ export class IdentityProvider {
   constructPopupUrl(): Promise<string>;
 
   /**
+   * @returns The parameters to build popup URL.
+   */
+  buildPopupUrlParams(): Promise<URL>;
+
+  /**
    * Adds listeners to a window object.
    *
    * @param win Window object to observe events on.
@@ -227,11 +235,17 @@ export class IdentityProvider {
   [processPopupRawData](url: string): void;
 
   /**
+   * @param params The instance of search params with the response from the auth dialog.
+   * @returns true when the params qualify as an authorization popup redirect response.
+   */
+  validateTokenResponse(params: URLSearchParams): boolean;
+
+  /**
    * Processes OAuth2 server query string response.
    *
    * @param oauthParams Created from parameters params.
    */
-  [processTokenResponse](oauthParams: URLSearchParams): Promise<void>;
+  processTokenResponse(oauthParams: URLSearchParams): Promise<void>;
 
   /**
    * Creates a token info object from query parameters
@@ -270,6 +284,34 @@ export class IdentityProvider {
    * Exchanges the authorization code for authorization token.
    *
    * @param code Returned code from the authorization endpoint.
+   * @returns The response from the server.
+   */
+  getCodeInfo(code: string): Promise<Record<string, any>>;
+
+  /**
+   * Requests for token from the authorization server for `code`, `password`, `client_credentials` and custom grant types.
+   *
+   * @param url Base URI of the endpoint. Custom properties will be applied to the final URL.
+   * @param body Generated body for given type. Custom properties will be applied to the final body.
+   * @param optHeaders Optional headers to add to the request. Applied after custom data.
+   * @returns Promise resolved to the response string.
+   */
+  requestTokenInfo(url: string, body: string, optHeaders?: Record<string, string>): Promise<Record<string, any>>;
+
+  /**
+   * Processes body of the code exchange to a map of key value pairs.
+   */
+  processCodeResponse(body: string, mime: string): Record<string, any>;
+  /**
+   * @param info
+   * @returns The token info when the request was a success.
+   */
+  mapCodeResponse(info: Record<string, any>): TokenInfo;
+
+  /**
+   * Exchanges the authorization code for authorization token.
+   *
+   * @param code Returned code from the authorization endpoint.
    * @return The token info when the request was a success.
    */
   exchangeCode(code: string): Promise<TokenInfo>;
@@ -281,26 +323,7 @@ export class IdentityProvider {
    */
   getCodeRequestBody(code: string): string;
 
-  /**
-   * Requests for token from the authorization server for `code`, `password`, `client_credentials` and custom grant types.
-   *
-   * @param url Base URI of the endpoint. Custom properties will be applied to the final URL.
-   * @param body Generated body for given type. Custom properties will be applied to the final body.
-   * @return Promise resolved to the response string.
-   */
-  requestToken(url: string, body: string): Promise<TokenInfo>;
-
   fetchToken(url: string, headers: object, body: string): Promise<FetchResponse>;
-
-  /**
-   * Processes code response body and produces map of values.
-   *
-   * @param body Body received in the response.
-   * @param mime Response content type.
-   * @return Response as an object.
-   * @throws {Error} Exception when the body is invalid.
-   */
-  [processCodeResponse](body: string, mime: string): TokenInfo;
 
   /**
    * A handler for the error that happened during code exchange.
@@ -338,7 +361,7 @@ export class IdentityProvider {
    *
    * This method resolves the main promise set by the `authorize()` function.
    *
-   * @return {} Promise resolved to a token info object.
+   * @return Promise resolved to a token info object.
    */
   [authorizePassword](): Promise<void>;
 
@@ -367,11 +390,39 @@ export class IdentityProvider {
   getCustomGrantBody(): string;
 
   /**
+   * Requests a token for the `urn:ietf:params:oauth:grant-type:device_code` response type.
+   *
+   * @return Promise resolved to a token info object.
+   */
+  [authorizeDeviceCode](): Promise<void>;
+
+  /**
+   * Generates a payload message for the `urn:ietf:params:oauth:grant-type:device_code` authorization.
+   *
+   * @return Message body as defined in OAuth2 spec.
+   */
+  getDeviceCodeBody(): string;
+
+  /**
+   * Requests a token for the `urn:ietf:params:oauth:grant-type:jwt-bearer` response type.
+   *
+   * @returns Promise resolved to a token info object.
+   */
+  [authorizeJwt](): Promise<void>;
+
+  /**
+   * Generates a payload message for the `urn:ietf:params:oauth:grant-type:jwt-bearer` authorization.
+   *
+   * @return Message body as defined in OAuth2 spec.
+   */
+  getJwtBody(): string;
+
+  /**
    * Processes the response returned by the popup or the iframe.
    * @param oauthParams
    * @return Parameters for the [reportOAuthError]() function
    */
-  [createTokenResponseError](oauthParams: URLSearchParams): string[];
+  createTokenResponseError(oauthParams: URLSearchParams): string[];
 
   /**
    * Creates arguments for the error function from error response
@@ -405,7 +456,7 @@ export class IdentityProvider {
    *
    * @return Token info object or `undefined` if there's no cached token or cached token expired.
    */
-  getTokenInfo(): Promise<TokenInfo|undefined>;
+  getTokenInfo(): Promise<TokenInfo | undefined>;
 
   /**
    * Restores authorization token information from the local store.

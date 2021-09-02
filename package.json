@@ -1,13 +1,14 @@
 {
   "name": "@advanced-rest-client/electron-oauth2",
-  "version": "5.0.6",
+  "version": "5.1.0",
   "description": "OAuth 2 library for Electron application build for Advanced REST Client",
   "main": "index.js",
   "module": "main.js",
   "scripts": {
     "test": "electron-mocha test/*.main.test.js --timeout 10000",
-    "test-implicit": "electron-mocha test/implicit.main.test.js",
-    "test-password": "electron-mocha test/password.main.test.js"
+    "test:implicit": "electron-mocha test/implicit.main.test.js",
+    "test:password": "electron-mocha test/password.main.test.js",
+    "test:oidc": "electron-mocha test/oidc.main.test.js"
   },
   "author": {
     "name": "Pawel Psztyc",
@@ -46,9 +47,11 @@
     "eslint-plugin-babel": "^5.3.1",
     "eslint-plugin-import": "^2.24.2",
     "eslint-plugin-no-only-tests": "^2.6.0",
+    "get-port": "^5.1.1",
     "husky": "^7.0.2",
     "lint-staged": "^11.1.2",
     "mocha": "^9.1.1",
+    "oauth2-mock-server": "^3.2.0",
     "sinon": "^11.1.2",
     "typescript": "^4.4.2"
   },

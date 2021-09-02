@@ -1,9 +1,11 @@
 import { OAuth2AuthorizeEvent, OAuth2RemoveTokenEvent } from '@advanced-rest-client/arc-events';
-import { OAuth2Authorization, TokenInfo, TokenRemoveOptions } from '@advanced-rest-client/arc-types/src/authorization/Authorization';
+import { OAuth2Authorization, OidcAuthorization, OidcTokenError, OidcTokenInfo, TokenInfo, TokenRemoveOptions } from '@advanced-rest-client/arc-types/src/authorization/Authorization';
 
 export declare const authorizeHandler: unique symbol;
 export declare const removeTokenHandler: unique symbol;
 export declare const prepareEventDetail: unique symbol;
+export declare const authorizeOidcHandler: unique symbol;
+export declare const removeOidcTokenHandler: unique symbol;
 
 /**
  * Class responsible for handing OAuth2 related events and to pass them to
@@ -30,6 +32,13 @@ export declare class OAuth2Handler {
   requestToken(opts: OAuth2Authorization): Promise<TokenInfo>;
 
   /**
+   * Requests for a token from the main process.
+   * @param opts Auth options.
+   * @returns The token info object.
+   */
+  requestOidcToken(opts: OidcAuthorization): Promise<(OidcTokenInfo|OidcTokenError)[]>;
+
+  /**
    * Prepares OAuth 2 config from the event detail.
    * @param detail Event's detail object
    */
@@ -39,6 +48,11 @@ export declare class OAuth2Handler {
    * Removes token from the cache.
    */
   deleteToken(opts?: TokenRemoveOptions): Promise<void>;
+
+  /**
+   * Removes token from the cache.
+   */
+  deleteOidcTokens(opts?: TokenRemoveOptions): Promise<void>;
 
   /**
    * Generates `state` parameter for the OAuth2 call.
