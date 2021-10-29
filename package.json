@@ -51,7 +51,7 @@
     "husky": "^7.0.2",
     "lint-staged": "^11.1.2",
     "mocha": "^9.1.1",
-    "oauth2-mock-server": "^3.2.0",
+    "oauth2-mock-server": "^4.0.0",
     "sinon": "^11.1.2",
     "typescript": "^4.4.2"
   },

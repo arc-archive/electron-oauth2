@@ -8,7 +8,7 @@ const oauth2server = new OAuth2Server();
  */
 module.exports.startServer = async function() {
   const port = await getPort({ port: getPort.makeRange(8000, 8100) });
-  const jwtKey = await oauth2server.issuer.keys.generateRSA();
+  const jwtKey = await oauth2server.issuer.keys.generate('RSA256');
   await oauth2server.start(port, 'localhost');
   return {
     port,
