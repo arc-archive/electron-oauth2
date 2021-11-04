@@ -48,6 +48,7 @@ export declare const grantResponseMapping: Record<string, string>;
  * A class to perform OAuth2 flow with given configuration.
  *
  * See README.md file for detailed description.
+ * @deprecated Use `@advanced-rest-client/electron` instead.
  */
 export class IdentityProvider {
   /**

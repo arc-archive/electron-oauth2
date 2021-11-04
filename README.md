@@ -1,4 +1,8 @@
-# OAuth 2 authorization library for Electron application
+# Deprecated
+
+This library is deprecated. Use `@advanced-rest-client/electron` instead.
+
+----
 
 This library originally was created for Advanced REST Client application.
 It is shared under Apache 2.0 license.

@@ -10,6 +10,7 @@ export declare const oidcRemoveTokenHandler: unique symbol;
 
 /**
  * Class that manages OAuth2 identities.
+ * @deprecated Use `@advanced-rest-client/electron` instead.
  */
 export declare class Oauth2Identity {
   /**
